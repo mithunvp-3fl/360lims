@@ -21,7 +21,7 @@ class Sample(BaseModel):
 
 
 class SampleCreate(BaseModel):
-    receiptId: str
+    receiptId: Optional[str] = None
     collectedBy: Optional[str] = None
     notes: Optional[str] = None
 
