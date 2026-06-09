@@ -7,12 +7,15 @@ import type {
   Approval,
   ApprovalDecision,
   AuditLog,
+  AuthUser,
   DashboardSummary,
   Instrument,
   Material,
   QualityInsight,
   Receipt,
   Result,
+  RoleKey,
+  RoleQueue,
   Sample,
   Supplier,
   Test,
@@ -50,6 +53,29 @@ export function useInstruments() {
 // --- Dashboard ---
 export function useDashboardSummary() {
   return useQuery({ queryKey: qk.dashboard, queryFn: () => api.get<DashboardSummary>("/dashboard/summary") });
+}
+
+export function useRoleQueue(role: RoleKey | undefined) {
+  return useQuery({
+    queryKey: ["role-queue", role],
+    queryFn: () => api.get<RoleQueue>(`/dashboard/role-queue?role=${role}`),
+    enabled: Boolean(role),
+  });
+}
+
+// --- Auth ---
+export function usePersonas() {
+  return useQuery({
+    queryKey: ["auth", "personas"],
+    queryFn: () => api.get<AuthUser[]>("/auth/personas"),
+  });
+}
+
+export function useLogin() {
+  return useMutation({
+    mutationFn: (body: { email: string; password: string }) =>
+      api.post<{ user: AuthUser; token: string }>("/auth/login", body),
+  });
 }
 
 // --- Receipts ---

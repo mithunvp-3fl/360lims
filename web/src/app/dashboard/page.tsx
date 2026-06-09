@@ -31,8 +31,11 @@ import { StatusPill } from "@/components/kit/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useDashboardSummary, useNotifications, useReceipts } from "@/lib/queries";
+import { useDashboardSummary, useNotifications, useReceipts, useRoleQueue } from "@/lib/queries";
 import { relativeTime } from "@/lib/utils";
+import { useAuth } from "@/components/role-context";
+import { RoleQueueCard } from "@/components/dashboard/role-queue-card";
+import { roleLabel } from "@/lib/roles";
 import type { ReceiptStatus } from "@/lib/types";
 
 const ICON_FOR_KPI: Record<string, React.ReactNode> = {
@@ -51,12 +54,24 @@ const STATUS_COLORS: Record<string, string> = {
   "On Hold": "rgb(217 119 6)",
 };
 
+function greetingFor(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function DashboardPage() {
+  const { user, role } = useAuth();
   const { data, isLoading } = useDashboardSummary();
   const { data: receipts } = useReceipts();
   const { data: notifications } = useNotifications();
+  const { data: roleQueue } = useRoleQueue(role);
 
   const recent = (receipts ?? []).slice(0, 5);
+  const firstName = user?.name?.split(" ")[0] ?? "there";
+  const greeting = greetingFor(new Date().getHours());
+  const queueCount = roleQueue?.items.length ?? 0;
+  const headline = roleQueue?.headline ?? "your workspace";
 
   return (
     <AppShell breadcrumbs={[{ label: "Operate", href: "/dashboard" }, { label: "Dashboard" }]}>
@@ -64,14 +79,16 @@ export default function DashboardPage() {
         {/* Hero greeting */}
         <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-1">
-              Operations dashboard
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-accent mb-1">
+              {roleLabel(role)} · Operations dashboard
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight">Good afternoon, Priya.</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {greeting}, {firstName}.
+            </h1>
             <p className="text-sm text-ink-muted mt-1 max-w-xl">
-              {data?.kpis.find((k) => k.label === "Awaiting Review")?.value ?? 0} lot
-              {(data?.kpis.find((k) => k.label === "Awaiting Review")?.value ?? 0) === 1 ? "" : "s"}{" "}
-              waiting on your review. Instrument floor is steady. Supplier health is up week-over-week.
+              {queueCount > 0
+                ? `${queueCount} ${queueCount === 1 ? "item is" : "items are"} waiting on you in ${headline.toLowerCase()}. The instrument floor is steady and supplier health is trending up.`
+                : `Nothing in ${headline.toLowerCase()} right now — you're caught up. Instrument floor is steady, supplier health is trending up.`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -85,6 +102,11 @@ export default function DashboardPage() {
               </Link>
             </Button>
           </div>
+        </div>
+
+        {/* Role-aware queue */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <RoleQueueCard />
         </div>
 
         {/* KPI strip */}

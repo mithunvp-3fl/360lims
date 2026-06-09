@@ -17,6 +17,7 @@ from app.routers import (
     audit,
     notifications,
     dashboard,
+    auth,
 )
 from app.seed import seed
 
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(audit.router, prefix="/api/v1", tags=["audit"])
     app.include_router(notifications.router, prefix="/api/v1", tags=["notifications"])
     app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
+    app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
 
     @app.get("/api/v1/health")
     def health() -> dict:

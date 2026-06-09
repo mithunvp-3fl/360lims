@@ -1,6 +1,9 @@
+"use client";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
+import { useAuth } from "@/components/role-context";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -8,6 +11,21 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, breadcrumbs }: AppShellProps) {
+  const { user, hydrated } = useAuth();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (hydrated && !user) router.replace("/login");
+  }, [hydrated, user, router]);
+
+  if (!hydrated || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-app text-ink-muted text-sm">
+        Loading workspace…
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex bg-app">
       <Sidebar />

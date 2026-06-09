@@ -247,3 +247,27 @@ export interface DashboardSummary {
   weeklyVolume: number[];
   riskHotspots: { lotNumber: string; supplier: string; material: string; status: string; risk: string }[];
 }
+
+export interface AuthUser {
+  name: string;
+  email: string;
+  role: RoleKey;
+  title: string;
+}
+
+export interface RoleQueueItem {
+  lotNumber: string;
+  supplier: string;
+  material: string;
+  status: ReceiptStatus;
+  riskLevel: RiskLevel;
+  receiptDate: string;
+  callout: string;
+}
+
+export interface RoleQueue {
+  role: RoleKey;
+  headline: string;
+  description: string;
+  items: RoleQueueItem[];
+}
