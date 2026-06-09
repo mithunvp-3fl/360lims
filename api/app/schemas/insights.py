@@ -19,6 +19,16 @@ class HistoricalDelivery(BaseModel):
     riskLevel: RiskLevel
 
 
+class ParameterTrend(BaseModel):
+    parameter: str
+    unit: str
+    current: float | None = None
+    previousAverage: float | None = None
+    delta: float | None = None
+    deltaPct: float | None = None
+    samples: int = 0  # how many past lots contributed to the average
+
+
 class QualityInsight(BaseModel):
     receiptId: str
     recommendedAction: RecommendedAction
@@ -30,7 +40,8 @@ class QualityInsight(BaseModel):
     testsTotal: int
     observations: List[str]
     historicalDeliveries: List[HistoricalDelivery] = []
+    parameterTrends: List[ParameterTrend] = []
     complianceScore: int  # 0-100
 
 
-__all__ = ["RecommendedAction", "HistoricalDelivery", "QualityInsight"]
+__all__ = ["RecommendedAction", "HistoricalDelivery", "ParameterTrend", "QualityInsight"]

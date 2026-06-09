@@ -182,6 +182,7 @@ export interface AppNotification {
   entityId?: string;
   createdAt: string;
   read: boolean;
+  meta?: Record<string, unknown> | null;
 }
 
 export interface AuditLog {
@@ -206,6 +207,16 @@ export interface HistoricalDelivery {
   riskLevel: RiskLevel;
 }
 
+export interface ParameterTrend {
+  parameter: string;
+  unit: string;
+  current: number | null;
+  previousAverage: number | null;
+  delta: number | null;
+  deltaPct: number | null;
+  samples: number;
+}
+
 export interface QualityInsight {
   receiptId: string;
   recommendedAction: RecommendedAction;
@@ -217,6 +228,7 @@ export interface QualityInsight {
   testsTotal: number;
   observations: string[];
   historicalDeliveries: HistoricalDelivery[];
+  parameterTrends: ParameterTrend[];
   complianceScore: number;
 }
 

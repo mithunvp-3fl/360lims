@@ -251,8 +251,9 @@ def seed() -> None:
                     specMin=al_specs["Cu"].minValue, specMax=al_specs["Cu"].maxValue,
                     status=_result_status(0.09, 0.0, 0.5)),
     ]
-    db.results[_id()] = Result(
-        id=_id(), testId=hero_tests[0].id, sampleId=hero_sample.id,
+    _rid = _id()
+    db.results[_rid] = Result(
+        id=_rid, testId=hero_tests[0].id, sampleId=hero_sample.id,
         source=ResultSource.INSTRUMENT, values=xrf_values,
         enteredBy="System (Panalytical XRF-01)", enteredAt=_iso(0, 5),
         instrumentCode="XRF-01", overallStatus=ResultStatus.PASS,
@@ -266,8 +267,9 @@ def seed() -> None:
         ResultValue(parameter="Mn", value=0.08, unit="%", specMin=0.0, specMax=1.0, status=ResultStatus.PASS),
         ResultValue(parameter="Zn", value=0.04, unit="%", specMin=0.0, specMax=1.0, status=ResultStatus.PASS),
     ]
-    db.results[_id()] = Result(
-        id=_id(), testId=hero_tests[1].id, sampleId=hero_sample.id,
+    _rid = _id()
+    db.results[_rid] = Result(
+        id=_rid, testId=hero_tests[1].id, sampleId=hero_sample.id,
         source=ResultSource.INSTRUMENT, values=oes_values,
         enteredBy="System (Thermo OES-01)", enteredAt=_iso(0, 4),
         instrumentCode="OES-01", overallStatus=ResultStatus.PASS,
@@ -277,8 +279,9 @@ def seed() -> None:
         ResultValue(parameter="Moisture", value=0.41, unit="%", specMin=0.0, specMax=1.0,
                     status=_result_status(0.41, 0.0, 1.0)),
     ]
-    db.results[_id()] = Result(
-        id=_id(), testId=hero_tests[2].id, sampleId=hero_sample.id,
+    _rid = _id()
+    db.results[_rid] = Result(
+        id=_rid, testId=hero_tests[2].id, sampleId=hero_sample.id,
         source=ResultSource.MANUAL, values=moist_values,
         enteredBy="Aditya Rao", enteredAt=_iso(0, 3),
         reason="External Lab",
@@ -301,11 +304,44 @@ def seed() -> None:
             ResultValue(parameter="Si", value=1.9, unit="%", specMin=0.0, specMax=2.5, status=ResultStatus.PASS),
             ResultValue(parameter="Fe", value=1.5, unit="%", specMin=0.0, specMax=1.0, status=ResultStatus.FAIL),
         ]
-        db.results[_id()] = Result(
-            id=_id(), testId=rt.id, sampleId=rs.id, source=ResultSource.INSTRUMENT,
+        _rrid = _id()
+        db.results[_rrid] = Result(
+            id=_rrid, testId=rt.id, sampleId=rs.id, source=ResultSource.INSTRUMENT,
             values=rvals, enteredBy="System (Panalytical XRF-01)",
             enteredAt=_iso(3, 1), instrumentCode="XRF-01",
             overallStatus=ResultStatus.FAIL,
+        )
+
+    # --- Backfill simple results on past ABC Aluminum Scrap lots so parameter
+    # trends in Quality Insights have something to average against. ---
+    for past_lot, sample_seq, xrf_vals, days in [
+        ("LOT-2026-0036", "A", [("Al", 98.05), ("Si", 0.68), ("Fe", 0.31), ("Cu", 0.10)], 4),
+        ("LOT-2026-0035", "A", [("Al", 98.21), ("Si", 0.65), ("Fe", 0.29), ("Cu", 0.08)], 6),
+        ("LOT-2026-0034", "A", [("Al", 97.98), ("Si", 0.74), ("Fe", 0.36), ("Cu", 0.11)], 9),
+    ]:
+        past = db.receipt_by_lot(past_lot)
+        if not past:
+            continue
+        ps = Sample(id=_id(), sampleId=past_lot.replace("LOT-", "SMP-") + f"-{sample_seq}",
+                    receiptId=past.id, collectionDate=_iso(days, 2),
+                    collectedBy="Sneha Iyer", status=SampleStatus.COLLECTED)
+        db.samples[ps.id] = ps
+        pt = Test(id=_id(), sampleId=ps.id, code="XRF", name="XRF Chemistry",
+                  parameters=[p for p, _ in xrf_vals], instrumentCode="XRF-01",
+                  status=TestStatus.COMPLETED, assignedAt=_iso(days, 1))
+        db.tests[pt.id] = pt
+        pvals = [
+            ResultValue(parameter=p, value=v, unit="%", specMin=al_specs.get(p, type("S",(),{"minValue":None})()).minValue if p in al_specs else None,
+                        specMax=al_specs.get(p, type("S",(),{"maxValue":None})()).maxValue if p in al_specs else None,
+                        status=ResultStatus.PASS)
+            for p, v in xrf_vals
+        ]
+        _prid = _id()
+        db.results[_prid] = Result(
+            id=_prid, testId=pt.id, sampleId=ps.id, source=ResultSource.INSTRUMENT,
+            values=pvals, enteredBy="System (Panalytical XRF-01)",
+            enteredAt=_iso(days, 1), instrumentCode="XRF-01",
+            overallStatus=ResultStatus.PASS,
         )
 
     # --- Seed audit + notification history so the bell isn't empty ---

@@ -28,6 +28,7 @@ def insights_for_receipt(lot_number: str) -> QualityInsight:
     results = db.results_for_receipt(r.id)
 
     history = []
+    historical_result_ids: set[str] = set()
     for other in db.receipts.values():
         if other.id == r.id:
             continue
@@ -39,7 +40,10 @@ def insights_for_receipt(lot_number: str) -> QualityInsight:
             outcome=_outcome_from_status(other.status),
             riskLevel=other.riskLevel,
         ))
+        for past in db.results_for_receipt(other.id):
+            historical_result_ids.add(past.id)
     history.sort(key=lambda h: h.receiptDate, reverse=True)
+    historical_results = [db.results[rid] for rid in historical_result_ids if rid in db.results]
 
     supplier_health = supplier.healthScore if supplier else 75
     # fake but plausible 12-week sparkline
@@ -53,4 +57,5 @@ def insights_for_receipt(lot_number: str) -> QualityInsight:
         supplier_health=supplier_health,
         supplier_health_trend=trend,
         supplier_history=history,
+        historical_results=historical_results,
     )

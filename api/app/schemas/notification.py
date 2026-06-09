@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Any, Optional
 from enum import Enum
 from pydantic import BaseModel
 
@@ -20,6 +20,7 @@ class Notification(BaseModel):
     entityId: Optional[str] = None
     createdAt: str
     read: bool = False
+    meta: Optional[dict[str, Any]] = None  # source-specific context surfaced in detail drawer
 
 
 __all__ = ["Notification", "NotificationSeverity"]

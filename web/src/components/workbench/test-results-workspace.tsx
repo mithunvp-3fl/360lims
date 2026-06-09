@@ -50,6 +50,48 @@ export function TestResultsWorkspace({ lot }: { lot: string }) {
     return m;
   }, [results]);
 
+  // Staggered fade-in animation for newly captured results.
+  // We mark a result as "fresh" when its id first appears in the cache.
+  // Each parameter tile under a fresh result fades in with a 180ms-per-index delay.
+  const seenIdsRef = React.useRef<Set<string>>(new Set());
+  const initialisedRef = React.useRef(false);
+  const [freshIds, setFreshIds] = React.useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    if (!results) return;
+    if (!initialisedRef.current) {
+      results.forEach((r) => seenIdsRef.current.add(r.id));
+      initialisedRef.current = true;
+      return;
+    }
+    const newIds: string[] = [];
+    for (const r of results) {
+      if (!seenIdsRef.current.has(r.id)) {
+        seenIdsRef.current.add(r.id);
+        newIds.push(r.id);
+      }
+    }
+    if (newIds.length === 0) return;
+    setFreshIds((prev) => {
+      const next = new Set(prev);
+      newIds.forEach((id) => next.add(id));
+      return next;
+    });
+    // remove the fresh flag after the longest stagger + animation duration
+    const maxValues = Math.max(
+      ...results.filter((r) => newIds.includes(r.id)).map((r) => r.values.length),
+    );
+    const total = maxValues * 180 + 700;
+    const timer = window.setTimeout(() => {
+      setFreshIds((prev) => {
+        const next = new Set(prev);
+        newIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    }, total);
+    return () => window.clearTimeout(timer);
+  }, [results]);
+
   return (
     <SectionCard
       title="Test results workspace"
@@ -152,8 +194,13 @@ export function TestResultsWorkspace({ lot }: { lot: string }) {
                       <tr className="bg-inset/40 border-t border-line/60">
                         <td colSpan={5} className="px-3 py-2.5">
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1.5">
-                            {r.values.map((v) => (
-                              <ParameterReadout key={v.parameter} value={v} />
+                            {r.values.map((v, idx) => (
+                              <ParameterReadout
+                                key={v.parameter}
+                                value={v}
+                                fresh={freshIds.has(r.id)}
+                                staggerIdx={idx}
+                              />
                             ))}
                           </div>
                           <div className="flex items-center gap-3 mt-2 text-[11px] text-ink-muted">
@@ -221,14 +268,33 @@ function ResultSummary({ result }: { result: Result }) {
   );
 }
 
-function ParameterReadout({ value }: { value: Result["values"][number] }) {
+function ParameterReadout({
+  value,
+  fresh,
+  staggerIdx = 0,
+}: {
+  value: Result["values"][number];
+  fresh?: boolean;
+  staggerIdx?: number;
+}) {
   return (
     <div
       className={cn(
         "surface-card p-2.5 relative",
         value.status === "Fail" && "border-danger/40",
         value.status === "Warning" && "border-warning/40",
+        fresh && "animate-fade-in",
+        fresh && "ring-1 ring-accent/30",
       )}
+      style={
+        fresh
+          ? {
+              animationDelay: `${staggerIdx * 180}ms`,
+              animationFillMode: "backwards",
+              animationDuration: "320ms",
+            }
+          : undefined
+      }
     >
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{value.parameter}</span>

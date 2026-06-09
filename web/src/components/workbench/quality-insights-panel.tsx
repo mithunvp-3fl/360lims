@@ -1,10 +1,11 @@
 "use client";
 import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
   Brain,
   ChevronRight,
-  Gauge,
   Sparkles,
-  ThumbsUp,
   TrendingUp,
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer } from "recharts";
@@ -12,7 +13,7 @@ import { SectionCard } from "@/components/kit/section-card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useInsights } from "@/lib/queries";
-import type { RecommendedAction, RiskLevel } from "@/lib/types";
+import type { ParameterTrend, RecommendedAction, RiskLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const ACTION_TONE: Record<RecommendedAction, { tone: "success" | "warning" | "danger" | "muted"; label: string }> = {
@@ -27,6 +28,37 @@ const RISK_TONE: Record<RiskLevel, "success" | "warning" | "danger"> = {
   Medium: "warning",
   High: "danger",
 };
+
+function ParameterTrendRow({ trend }: { trend: ParameterTrend }) {
+  const delta = trend.delta;
+  const dir = delta == null ? "flat" : delta > 0.001 ? "up" : delta < -0.001 ? "down" : "flat";
+  const Icon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : ArrowRight;
+  // For most quality parameters, neither "up" nor "down" is inherently good — what matters is
+  // proximity to the historical baseline. Big absolute deltaPct turns amber.
+  const magnitude = trend.deltaPct == null ? 0 : Math.abs(trend.deltaPct);
+  const tone =
+    trend.samples === 0 ? "text-ink-subtle"
+    : magnitude < 2 ? "text-success"
+    : magnitude < 6 ? "text-warning"
+    : "text-danger";
+  return (
+    <tr className="border-t border-line/60">
+      <td className="py-1 px-2 font-medium">{trend.parameter}</td>
+      <td className="py-1 px-2 text-right tabular-nums">
+        {trend.current?.toFixed(2)} <span className="text-[10px] text-ink-subtle">{trend.unit}</span>
+      </td>
+      <td className="py-1 px-2 text-right tabular-nums text-ink-muted">
+        {trend.previousAverage != null ? trend.previousAverage.toFixed(2) : "—"}
+      </td>
+      <td className={cn("py-1 px-2 text-right tabular-nums", tone)}>
+        <span className="inline-flex items-center gap-0.5">
+          <Icon className="h-3 w-3" />
+          {delta != null ? `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}` : "—"}
+        </span>
+      </td>
+    </tr>
+  );
+}
 
 export function QualityInsightsPanel({ lot }: { lot: string }) {
   const { data: insights, isLoading } = useInsights(lot);
@@ -142,6 +174,37 @@ export function QualityInsightsPanel({ lot }: { lot: string }) {
               ))}
             </ul>
           </div>
+
+          {/* Parameter trends — current vs historical average */}
+          {insights.parameterTrends.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+                  Parameter trends vs history
+                </div>
+                <span className="text-[10px] text-ink-subtle">
+                  past {Math.max(...insights.parameterTrends.map((t) => t.samples), 0)} lots
+                </span>
+              </div>
+              <div className="rounded-md border border-line overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-inset/60 text-[10px] uppercase tracking-wide text-ink-muted">
+                    <tr>
+                      <th className="text-left font-semibold py-1.5 px-2">Param</th>
+                      <th className="text-right font-semibold py-1.5 px-2">Current</th>
+                      <th className="text-right font-semibold py-1.5 px-2">Prev avg</th>
+                      <th className="text-right font-semibold py-1.5 px-2">Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {insights.parameterTrends.slice(0, 8).map((t) => (
+                      <ParameterTrendRow key={t.parameter} trend={t} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Historical */}
           {insights.historicalDeliveries.length > 0 && (

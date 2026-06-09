@@ -11,7 +11,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -95,22 +94,21 @@ export function CreateReceiptDialog({
   }
 
   const defaultTrigger = (
-    <Button>
+    <Button onClick={() => setOpen(true)}>
       <Plus className="h-4 w-4" />
       New Receipt
     </Button>
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <RoleGate permission="receipt:create" needs={["stores-executive", "qa-manager"]}>
-            {defaultTrigger}
-          </RoleGate>
-        )}
-      </DialogTrigger>
-      <DialogContent>
+    <>
+      {trigger ?? (
+        <RoleGate permission="receipt:create" needs={["stores-executive", "qa-manager"]}>
+          {defaultTrigger}
+        </RoleGate>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
         <form onSubmit={submit} className="space-y-4">
           <DialogHeader>
             <DialogTitle>Create a new receipt</DialogTitle>
@@ -185,5 +183,6 @@ export function CreateReceiptDialog({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

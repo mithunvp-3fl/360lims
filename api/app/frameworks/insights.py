@@ -10,6 +10,7 @@ from typing import List
 from app.schemas.common import RiskLevel
 from app.schemas.insights import (
     HistoricalDelivery,
+    ParameterTrend,
     QualityInsight,
     RecommendedAction,
 )
@@ -24,6 +25,7 @@ def compute(
     supplier_health: int,
     supplier_health_trend: List[int],
     supplier_history: List[HistoricalDelivery],
+    historical_results: List[Result] | None = None,
 ) -> QualityInsight:
     tests_total = len(tests)
     tests_completed = sum(1 for t in tests if t.status == TestStatus.COMPLETED)
@@ -75,6 +77,40 @@ def compute(
         pass_pct = sum(1 for v in all_values if v.status == ResultStatus.PASS) / len(all_values)
         compliance_score = int(pass_pct * 100)
 
+    # Parameter trends: current value vs historical average per parameter
+    parameter_trends: List[ParameterTrend] = []
+    if all_values:
+        history_by_param: dict[str, list[float]] = {}
+        for r in historical_results or []:
+            for v in r.values:
+                history_by_param.setdefault(v.parameter, []).append(v.value)
+        seen_params: set[str] = set()
+        for v in all_values:
+            if v.parameter in seen_params:
+                continue
+            seen_params.add(v.parameter)
+            past = history_by_param.get(v.parameter, [])
+            if past:
+                prev_avg = sum(past) / len(past)
+                delta = v.value - prev_avg
+                delta_pct = (delta / prev_avg * 100) if prev_avg != 0 else None
+                parameter_trends.append(ParameterTrend(
+                    parameter=v.parameter,
+                    unit=v.unit,
+                    current=v.value,
+                    previousAverage=round(prev_avg, 3),
+                    delta=round(delta, 3),
+                    deltaPct=round(delta_pct, 1) if delta_pct is not None else None,
+                    samples=len(past),
+                ))
+            else:
+                parameter_trends.append(ParameterTrend(
+                    parameter=v.parameter,
+                    unit=v.unit,
+                    current=v.value,
+                    samples=0,
+                ))
+
     return QualityInsight(
         receiptId=receipt_id,
         recommendedAction=action,
@@ -86,5 +122,6 @@ def compute(
         testsTotal=tests_total,
         observations=observations[:4],
         historicalDeliveries=supplier_history[:5],
+        parameterTrends=parameter_trends,
         complianceScore=compliance_score,
     )

@@ -59,17 +59,17 @@ export default function WorkbenchPage() {
             onShowHistory={() => setAuditOpen(true)}
           />
           <WorkflowTimeline workflow={workflow} />
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
             <div className="xl:col-span-2 space-y-5">
               <MaterialOverview receipt={receipt} supplier={supplier} material={material} />
               <SampleSection lot={lot} />
               <TestResultsWorkspace lot={lot} />
             </div>
-            <div className="space-y-5">
+            <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
               <QualityInsightsPanel lot={lot} />
               <ApprovalCenter receipt={receipt} />
               <ActivityFeed lot={lot} receiptId={receipt.id} />
-            </div>
+            </aside>
           </div>
         </div>
       )}

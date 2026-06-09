@@ -137,9 +137,59 @@ def import_from_instrument(body: InstrumentImportRequest) -> Result:
             inst.importsThisWeek += 1
             break
     audit.record("Current User", "Lab Analyst", "import", "result", rid, None,
-                 {"instrument": body.instrumentCode, "test": test.code})
-    notif.emit("Results Imported", f"{test.name} results imported from {instrument_name}.",
-               NotificationSeverity.SUCCESS, "result", rid)
+                 {"instrument": body.instrumentCode, "test": test.code,
+                  "values": [v.model_dump() for v in values]})
+    summary = f"{len(values)} parameters captured from {instrument_name}."
+    notif.emit(
+        "Results imported successfully",
+        summary,
+        NotificationSeverity.SUCCESS,
+        "result",
+        rid,
+        meta={
+            "instrument": instrument_name,
+            "instrumentCode": body.instrumentCode,
+            "sampleId": sample.sampleId,
+            "testCode": test.code,
+            "testName": test.name,
+            "parameterCount": len(values),
+            "parameters": [v.parameter for v in values],
+            "overallStatus": overall.value,
+            "durationMs": 5400,
+        },
+    )
+    # spec-validation rollup notification
+    if overall == ResultStatus.PASS:
+        notif.emit(
+            "Specification validation completed",
+            f"{test.name}: all {len(values)} parameters within specification.",
+            NotificationSeverity.INFO,
+            "result",
+            rid,
+            meta={"testCode": test.code, "result": "compliant"},
+        )
+    elif overall == ResultStatus.WARNING:
+        warn_count = sum(1 for v in values if v.status == ResultStatus.WARNING)
+        notif.emit(
+            "Specification variance detected",
+            f"{test.name}: {warn_count} parameter(s) near spec edge — second look recommended.",
+            NotificationSeverity.WARNING,
+            "result",
+            rid,
+            meta={"testCode": test.code, "result": "variance",
+                  "varianceParameters": [v.parameter for v in values if v.status == ResultStatus.WARNING]},
+        )
+    else:
+        fail_count = sum(1 for v in values if v.status == ResultStatus.FAIL)
+        notif.emit(
+            "Specification failure",
+            f"{test.name}: {fail_count} parameter(s) out of specification.",
+            NotificationSeverity.DANGER,
+            "result",
+            rid,
+            meta={"testCode": test.code, "result": "out-of-spec",
+                  "failedParameters": [v.parameter for v in values if v.status == ResultStatus.FAIL]},
+        )
     _advance_receipt_after_result(receipt.id)
     return result
 
@@ -185,8 +235,19 @@ def manual_entry(body: ManualResultCreate) -> Result:
     test.status = TestStatus.COMPLETED
     audit.record("Current User", "Lab Analyst", "manual-entry", "result", rid,
                  None, {"reason": body.reason, "values": [v.model_dump() for v in enriched]})
-    notif.emit("Manual Entry Saved", f"{test.name} entered manually ({body.reason}).",
-               NotificationSeverity.INFO, "result", rid)
+    notif.emit(
+        "Manual result captured",
+        f"{test.name} entered by lab analyst ({body.reason}).",
+        NotificationSeverity.INFO, "result", rid,
+        meta={
+            "testCode": test.code,
+            "testName": test.name,
+            "reason": body.reason,
+            "parameterCount": len(enriched),
+            "parameters": [v.parameter for v in enriched],
+            "overallStatus": overall.value,
+        },
+    )
     _advance_receipt_after_result(receipt.id)
     return result
 
@@ -219,9 +280,20 @@ def file_upload(body: FileUploadRequest) -> Result:
     db.results[rid] = result
     test.status = TestStatus.COMPLETED
     audit.record("Current User", "Lab Analyst", "file-upload", "result", rid,
-                 None, {"fileName": body.fileName})
-    notif.emit("File Processed", f"{body.fileName} parsed and results captured.",
-               NotificationSeverity.SUCCESS, "result", rid)
+                 None, {"fileName": body.fileName, "values": [v.model_dump() for v in values]})
+    notif.emit(
+        "File processed",
+        f"{body.fileName} parsed — {len(values)} parameters extracted.",
+        NotificationSeverity.SUCCESS, "result", rid,
+        meta={
+            "fileName": body.fileName,
+            "testCode": test.code,
+            "testName": test.name,
+            "parameterCount": len(values),
+            "parameters": [v.parameter for v in values],
+            "overallStatus": overall.value,
+        },
+    )
     _advance_receipt_after_result(receipt.id)
     return result
 
