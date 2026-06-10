@@ -26,7 +26,30 @@ from app.schemas.qualification import (
     QualificationStatus,
     QualificationTest,
 )
+from app.schemas.metal_batch import (
+    MetalBatch,
+    MetalBatchStatus,
+    MetalResult,
+    MetalSample,
+    MetalTest,
+    ProductGrade,
+)
+from app.schemas.product_batch import (
+    ProductBatch,
+    ProductBatchStatus,
+    ProductResult,
+    ProductSample,
+    ProductTest,
+    ProductType,
+)
+from app.schemas.certificate import (
+    Certificate,
+    CertificateStatus,
+    CustomerSpec,
+    DispatchStatus,
+)
 from app.frameworks import workflow_engine
+from app.frameworks import product_insights as product_fw
 from app.store import db
 
 
@@ -267,6 +290,55 @@ def seed() -> None:
             lastHeartbeatAt=_iso(0, 0), importsThisWeek=15,
             supportedParameters=["Crystallinity", "Cryolite Ratio", "Alumina Phase"],
         ),
+        # --- Phase 4: Product Quality Testing instruments ---
+        Instrument(
+            id=_id(), code="UTS-01", name="Zwick Roell Z150",
+            type=InstrumentType.OTHER, vendor="Zwick Roell", model="Z150",
+            serialNumber="ZR-Z150-2031", status=InstrumentStatus.ONLINE,
+            location="Mechanical Lab", lastImportAt=_iso(0, 4),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=22,
+            supportedParameters=["UTS", "YieldStrength", "Elongation"],
+        ),
+        Instrument(
+            id=_id(), code="HARD-01", name="Wilson VH3300",
+            type=InstrumentType.OTHER, vendor="Wilson", model="VH3300",
+            serialNumber="WIL-VH3300-771", status=InstrumentStatus.ONLINE,
+            location="Mechanical Lab", lastImportAt=_iso(0, 5),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=28,
+            supportedParameters=["Hardness"],
+        ),
+        Instrument(
+            id=_id(), code="MICRO-01", name="Leica DM6 M",
+            type=InstrumentType.OTHER, vendor="Leica Microsystems", model="DM6 M",
+            serialNumber="LEI-DM6M-115", status=InstrumentStatus.ONLINE,
+            location="Metallography Lab", lastImportAt=_iso(0, 6),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=14,
+            supportedParameters=["GrainSize", "Phase"],
+        ),
+        Instrument(
+            id=_id(), code="COND-01", name="Foerster Sigmatest",
+            type=InstrumentType.OTHER, vendor="Foerster", model="Sigmatest 2.069",
+            serialNumber="FOE-ST2069-441", status=InstrumentStatus.ONLINE,
+            location="Mechanical Lab", lastImportAt=_iso(0, 7),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=18,
+            supportedParameters=["Conductivity"],
+        ),
+        Instrument(
+            id=_id(), code="DIM-01", name="Mitutoyo Crysta-Apex",
+            type=InstrumentType.OTHER, vendor="Mitutoyo", model="Crysta-Apex S574",
+            serialNumber="MIT-CAS574-9912", status=InstrumentStatus.ONLINE,
+            location="Inspection Bay", lastImportAt=_iso(0, 3),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=24,
+            supportedParameters=["Length", "Diameter", "Weight"],
+        ),
+        Instrument(
+            id=_id(), code="VIS-INSP", name="Visual Inspection Station",
+            type=InstrumentType.OTHER, vendor="In-house", model="VIS-STN-01",
+            serialNumber="VIS-STN-2026-01", status=InstrumentStatus.ONLINE,
+            location="Inspection Bay", lastImportAt=_iso(0, 2),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=30,
+            supportedParameters=["SurfaceDefects"],
+        ),
     ]
     for inst in instruments:
         db.instruments[inst.id] = inst
@@ -494,6 +566,21 @@ def seed() -> None:
     # Phase 2 — Process Material Qualification seed data
     # ====================================================================
     _seed_qualifications(c_coke, ctpi, cryolite, bath_mat, alf3, pet_coke, abc, gat)
+
+    # ====================================================================
+    # Phase 3 — Metal Quality Control seed data
+    # ====================================================================
+    _seed_metal_batches()
+
+    # ====================================================================
+    # Phase 4 — Product Quality Testing seed data
+    # ====================================================================
+    _seed_product_batches()
+
+    # ====================================================================
+    # Phase 5 — Certificate & Dispatch seed data
+    # ====================================================================
+    _seed_certificates()
 
 
 # --------------------------------------------------------------------------
@@ -739,3 +826,655 @@ def _seed_qualifications(c_coke, ctpi, cryolite, bath_mat, alf3, pet_coke, abc, 
     notif.emit("Process readiness recalculated",
                f"{hero.qualificationNumber} ready for QA review — 91/100.",
                entity_type="qualification", entity_id=hero.id)
+
+
+# --------------------------------------------------------------------------
+# Phase 3 helper: seeds hero metal batch MB-2026-001245 (P1020 · PL-03 · 32MT)
+# and sibling batches so the queue, workbench, and Quality Insights panel
+# render meaningful data.
+# --------------------------------------------------------------------------
+def _seed_metal_batches() -> None:
+    from app.frameworks import audit, notifications as notif
+
+    hero = MetalBatch(
+        id=_id(),
+        metalBatchNumber="MB-2026-001245",
+        productGrade=ProductGrade.P1020,
+        potline="PL-03",
+        shift="A",
+        productionDate=_iso(0, 6),
+        weight=32.0,
+        uom="MT",
+        operator="Vikram Singh",
+        status=MetalBatchStatus.PENDING_REVIEW,
+        riskLevel=RiskLevel.LOW,
+        assignedTo="Ravi Iyer",
+        sourceQualificationNumber="PMQ-2026-001245",
+        createdAt=_iso(0, 6),
+        createdBy="Vikram Singh",
+        notes="Standard tap from PL-03 — shift-A pour ready for chemistry verification.",
+    )
+    db.metal_batches[hero.id] = hero
+
+    wf = workflow_engine.create_workflow("metal-quality-control", hero.id)
+    workflow_engine.complete_through(wf, "validation", "Arjun Patel")
+    db.workflows[hero.id] = wf
+
+    hero_sample = MetalSample(
+        id=_id(),
+        sampleId="MQS-001245-A",
+        metalBatchId=hero.id,
+        collectionDate=_iso(0, 5),
+        collectedBy="Sneha Iyer",
+        status=SampleStatus.COLLECTED,
+        notes="Dip sample taken just before launder transfer.",
+    )
+    db.metal_samples[hero_sample.id] = hero_sample
+
+    hero_test = MetalTest(
+        id=_id(), sampleId=hero_sample.id,
+        code="OES", name="OES Chemistry",
+        parameters=["Si", "Fe", "Cu", "Mg", "Zn", "Ti", "Mn"],
+        instrumentCode="OES-01",
+        status=TestStatus.COMPLETED,
+        assignedAt=_iso(0, 4),
+    )
+    db.metal_tests[hero_test.id] = hero_test
+
+    # OES results aligned with the PRD demo numbers (Section 31).
+    hero_vals = [
+        ("Si", 0.08, (0.00, 0.10)),
+        ("Fe", 0.14, (0.00, 0.20)),
+        ("Cu", 0.02, (0.00, 0.03)),
+        ("Mg", 0.01, (0.00, 0.03)),
+        ("Zn", 0.01, (0.00, 0.03)),
+        ("Ti", 0.01, (0.00, 0.03)),
+        ("Mn", 0.01, (0.00, 0.03)),
+    ]
+    rid = _id()
+    db.metal_results[rid] = MetalResult(
+        id=rid, testId=hero_test.id, sampleId=hero_sample.id,
+        source=ResultSource.INSTRUMENT,
+        values=[
+            ResultValue(parameter=p, value=v, unit="%",
+                        specMin=lo, specMax=hi, status=ResultStatus.PASS)
+            for p, v, (lo, hi) in hero_vals
+        ],
+        enteredBy="System (Thermo OES-01)",
+        enteredAt=_iso(0, 3),
+        instrumentCode="OES-01",
+        overallStatus=ResultStatus.PASS,
+    )
+
+    siblings = [
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001244",
+                   productGrade=ProductGrade.P1020, potline="PL-03", shift="C",
+                   productionDate=_iso(1, 4), weight=31.5, operator="Anil Kumar",
+                   status=MetalBatchStatus.RELEASED, riskLevel=RiskLevel.LOW,
+                   assignedTo="Priya Menon", createdAt=_iso(1, 4),
+                   createdBy="Anil Kumar",
+                   notes="Released — chemistry trend stable."),
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001243",
+                   productGrade=ProductGrade.P1020, potline="PL-03", shift="B",
+                   productionDate=_iso(2, 6), weight=32.2, operator="Vikram Singh",
+                   status=MetalBatchStatus.RELEASED, riskLevel=RiskLevel.LOW,
+                   assignedTo="Priya Menon", createdAt=_iso(2, 6),
+                   createdBy="Vikram Singh"),
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001242",
+                   productGrade=ProductGrade.P1020, potline="PL-03", shift="A",
+                   productionDate=_iso(3, 2), weight=30.8, operator="Anil Kumar",
+                   status=MetalBatchStatus.ON_HOLD, riskLevel=RiskLevel.MEDIUM,
+                   assignedTo="Ravi Iyer", createdAt=_iso(3, 2),
+                   createdBy="Anil Kumar",
+                   notes="On hold — Fe near upper limit, recheck ordered."),
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001241",
+                   productGrade=ProductGrade.P1020, potline="PL-02", shift="A",
+                   productionDate=_iso(0, 12), weight=31.0, operator="Suresh Babu",
+                   status=MetalBatchStatus.PENDING_TESTING, riskLevel=RiskLevel.LOW,
+                   assignedTo="Arjun Patel", createdAt=_iso(0, 12),
+                   createdBy="Suresh Babu"),
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001240",
+                   productGrade=ProductGrade.P0610, potline="PL-01", shift="C",
+                   productionDate=_iso(1, 8), weight=28.0, operator="Suresh Babu",
+                   status=MetalBatchStatus.PENDING_REVIEW, riskLevel=RiskLevel.LOW,
+                   assignedTo="Ravi Iyer", createdAt=_iso(1, 8),
+                   createdBy="Suresh Babu"),
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001239",
+                   productGrade=ProductGrade.P0610, potline="PL-01", shift="B",
+                   productionDate=_iso(2, 14), weight=27.5, operator="Anil Kumar",
+                   status=MetalBatchStatus.RELEASED, riskLevel=RiskLevel.LOW,
+                   assignedTo="Priya Menon", createdAt=_iso(2, 14),
+                   createdBy="Anil Kumar"),
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001238",
+                   productGrade=ProductGrade.PRIMARY_AL, potline="PL-04", shift="A",
+                   productionDate=_iso(0, 3), weight=29.0, operator="Vikram Singh",
+                   status=MetalBatchStatus.PENDING_SAMPLING, riskLevel=RiskLevel.LOW,
+                   assignedTo="Sneha Iyer", createdAt=_iso(0, 3),
+                   createdBy="Vikram Singh"),
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001237",
+                   productGrade=ProductGrade.P1020, potline="PL-02", shift="A",
+                   productionDate=_iso(5, 0), weight=30.0, operator="Anil Kumar",
+                   status=MetalBatchStatus.REJECTED, riskLevel=RiskLevel.HIGH,
+                   assignedTo="Priya Menon", createdAt=_iso(5, 0),
+                   createdBy="Anil Kumar",
+                   notes="Fe 0.32% — exceeded P1020 tolerance. Re-melted."),
+        MetalBatch(id=_id(), metalBatchNumber="MB-2026-001236",
+                   productGrade=ProductGrade.P0610, potline="PL-01", shift="A",
+                   productionDate=_iso(6, 2), weight=28.5, operator="Suresh Babu",
+                   status=MetalBatchStatus.DOWNGRADED, riskLevel=RiskLevel.MEDIUM,
+                   assignedTo="Priya Menon", createdAt=_iso(6, 2),
+                   createdBy="Suresh Babu",
+                   notes="Si edge of spec — downgraded to P1020."),
+    ]
+    for b in siblings:
+        db.metal_batches[b.id] = b
+        wfx = workflow_engine.create_workflow("metal-quality-control", b.id)
+        stage_map = {
+            MetalBatchStatus.PENDING_SAMPLING: "batch",
+            MetalBatchStatus.PENDING_TESTING: "sample",
+            MetalBatchStatus.PENDING_REVIEW: "validation",
+            MetalBatchStatus.RELEASED: "release",
+            MetalBatchStatus.DOWNGRADED: "release",
+            MetalBatchStatus.ON_HOLD: "review",
+            MetalBatchStatus.REJECTED: "review",
+            MetalBatchStatus.CANCELLED: "review",
+        }
+        workflow_engine.complete_through(wfx, stage_map[b.status], b.assignedTo or "Priya Menon")
+        db.workflows[b.id] = wfx
+
+    # Backfill released/held PL-03 P1020 siblings with chemistry so the
+    # readiness engine and parameter trends have real history to chart.
+    history_vals = [
+        (siblings[0], [("Si", 0.07), ("Fe", 0.13), ("Cu", 0.02), ("Mg", 0.01),
+                       ("Zn", 0.01), ("Ti", 0.01), ("Mn", 0.01)]),
+        (siblings[1], [("Si", 0.08), ("Fe", 0.12), ("Cu", 0.02), ("Mg", 0.01),
+                       ("Zn", 0.01), ("Ti", 0.01), ("Mn", 0.01)]),
+        (siblings[2], [("Si", 0.09), ("Fe", 0.18), ("Cu", 0.02), ("Mg", 0.01),
+                       ("Zn", 0.01), ("Ti", 0.01), ("Mn", 0.01)]),
+    ]
+    grade_specs = {
+        "Si": (0.00, 0.10), "Fe": (0.00, 0.20), "Cu": (0.00, 0.03),
+        "Mg": (0.00, 0.03), "Zn": (0.00, 0.03), "Ti": (0.00, 0.03),
+        "Mn": (0.00, 0.03),
+    }
+    for sib, vals in history_vals:
+        s = MetalSample(
+            id=_id(),
+            sampleId=f"MQS-{sib.metalBatchNumber.split('-')[-1]}-A",
+            metalBatchId=sib.id,
+            collectionDate=_iso(2, 1),
+            collectedBy="Sneha Iyer",
+            status=SampleStatus.COLLECTED,
+        )
+        db.metal_samples[s.id] = s
+        t = MetalTest(
+            id=_id(), sampleId=s.id,
+            code="OES", name="OES Chemistry",
+            parameters=[p for p, _ in vals],
+            instrumentCode="OES-01",
+            status=TestStatus.COMPLETED,
+            assignedAt=_iso(2, 1),
+        )
+        db.metal_tests[t.id] = t
+        status_overall = ResultStatus.PASS
+        result_values = []
+        for p, v in vals:
+            lo, hi = grade_specs[p]
+            margin = (hi - lo) * 0.1
+            if v < lo or v > hi:
+                vstatus = ResultStatus.FAIL
+                status_overall = ResultStatus.FAIL
+            elif v < lo + margin or v > hi - margin:
+                vstatus = ResultStatus.WARNING
+                if status_overall == ResultStatus.PASS:
+                    status_overall = ResultStatus.WARNING
+            else:
+                vstatus = ResultStatus.PASS
+            result_values.append(ResultValue(
+                parameter=p, value=v, unit="%",
+                specMin=lo, specMax=hi, status=vstatus,
+            ))
+        rid_h = _id()
+        db.metal_results[rid_h] = MetalResult(
+            id=rid_h, testId=t.id, sampleId=s.id,
+            source=ResultSource.INSTRUMENT,
+            values=result_values,
+            enteredBy="System (Thermo OES-01)",
+            enteredAt=_iso(2, 1),
+            instrumentCode="OES-01",
+            overallStatus=status_overall,
+        )
+
+    audit.record("Vikram Singh", "Casthouse Operator", "create", "metal-batch",
+                 hero.id, None, hero.model_dump())
+    audit.record("Sneha Iyer", "Lab Analyst", "create", "metal-sample",
+                 hero_sample.id, None, hero_sample.model_dump())
+    audit.record("System", "Lab Analyst", "import", "metal-result",
+                 list(db.metal_results.values())[0].id, None,
+                 {"source": "Instrument", "instrument": "OES-01"})
+
+    notif.emit("Metal batch created successfully",
+               f"{hero.metalBatchNumber} created — P1020 on PL-03 (32 MT).",
+               entity_type="metal-batch", entity_id=hero.id)
+    notif.emit("Sample generated successfully",
+               f"Sample {hero_sample.sampleId} drawn for {hero.metalBatchNumber}.",
+               entity_type="metal-sample", entity_id=hero_sample.id)
+    notif.emit("OES results imported",
+               "Si, Fe, Cu, Mg, Zn, Ti, Mn captured from Thermo OES-01.",
+               entity_type="metal-batch", entity_id=hero.id)
+    notif.emit("Chemistry validation completed",
+               f"{hero.metalBatchNumber} ready for QA review — 98/100 compliance.",
+               entity_type="metal-batch", entity_id=hero.id)
+
+
+# --------------------------------------------------------------------------
+# Phase 4 helper: seeds hero product batch PB-2026-000210 (Primary Aluminum
+# Ingot, 22.5 MT) and sibling batches so the queue, workbench, and Quality
+# Insights panel render meaningful data.
+# --------------------------------------------------------------------------
+def _seed_product_batches() -> None:
+    from app.frameworks import audit, notifications as notif
+
+    hero = ProductBatch(
+        id=_id(),
+        productBatchNumber="PB-2026-000210",
+        productType=ProductType.PRIMARY_ALUMINUM_INGOT,
+        weight=22.5,
+        uom="MT",
+        sourceMetalBatchNumber="MB-2026-001245",
+        customer="Export Customer",
+        operator="Vikram Singh",
+        productionDate=_iso(0, 4),
+        status=ProductBatchStatus.PENDING_REVIEW,
+        riskLevel=RiskLevel.LOW,
+        assignedTo="Ravi Iyer",
+        createdAt=_iso(0, 4),
+        createdBy="Vikram Singh",
+        notes="Hero ingot pour ready for QA review.",
+    )
+    db.product_batches[hero.id] = hero
+
+    wf = workflow_engine.create_workflow("product-quality-testing", hero.id)
+    workflow_engine.complete_through(wf, "validation", "Arjun Patel")
+    db.workflows[hero.id] = wf
+
+    hero_sample = ProductSample(
+        id=_id(),
+        sampleId="PQS-000210-A",
+        productBatchId=hero.id,
+        collectionDate=_iso(0, 3),
+        collectedBy="Sneha Iyer",
+        status=SampleStatus.COLLECTED,
+        notes="Sample collected from ingot mid-section.",
+    )
+    db.product_samples[hero_sample.id] = hero_sample
+
+    # Hero test plan with PRD §19 demo numbers — all passing.
+    hero_test_plan = [
+        ("UTS", "Ultimate Tensile Strength", ["UTS", "YieldStrength", "Elongation"],
+         "UTS-01", [("UTS", 165.0), ("YieldStrength", 72.0), ("Elongation", 14.5)]),
+        ("HARDNESS", "Hardness", ["Hardness"], "HARD-01",
+         [("Hardness", 52.0)]),
+        ("CONDUCTIVITY", "Conductivity", ["Conductivity"], "COND-01",
+         [("Conductivity", 61.0)]),
+        ("DIMENSIONS", "Dimensions & Weight", ["Length", "Diameter", "Weight"], "DIM-01",
+         [("Length", 710.0), ("Diameter", 100.0), ("Weight", 22.4)]),
+        ("METALLOGRAPHY", "Microstructure Review", ["GrainSize", "Phase"], "MICRO-01",
+         [("GrainSize", 82.0), ("Phase", 96.8)]),
+        ("VISUAL", "Visual Inspection", ["SurfaceDefects"], "VIS-INSP",
+         [("SurfaceDefects", 1.0)]),
+    ]
+
+    for code, name, params, inst_code, vals in hero_test_plan:
+        t = ProductTest(
+            id=_id(),
+            sampleId=hero_sample.id,
+            code=code, name=name, parameters=params,
+            instrumentCode=inst_code,
+            status=TestStatus.COMPLETED,
+            assignedAt=_iso(0, 2),
+        )
+        db.product_tests[t.id] = t
+
+        rvals = []
+        for p, v in vals:
+            spec = product_fw.spec_for(ProductType.PRIMARY_ALUMINUM_INGOT, p)
+            unit = product_fw.unit_for(p)
+            if spec:
+                lo, hi, _ = spec
+                status_val = product_fw._status_for(v, lo, hi)
+            else:
+                lo, hi, status_val = None, None, ResultStatus.PASS
+            rvals.append(ResultValue(
+                parameter=p, value=v,
+                unit=unit or "",
+                specMin=lo, specMax=hi,
+                status=status_val,
+            ))
+        overall = ResultStatus.PASS
+        if any(v.status == ResultStatus.FAIL for v in rvals):
+            overall = ResultStatus.FAIL
+        elif any(v.status == ResultStatus.WARNING for v in rvals):
+            overall = ResultStatus.WARNING
+
+        rid = _id()
+        db.product_results[rid] = ProductResult(
+            id=rid, testId=t.id, sampleId=hero_sample.id,
+            source=ResultSource.INSTRUMENT,
+            values=rvals,
+            enteredBy=f"System ({inst_code})",
+            enteredAt=_iso(0, 1),
+            instrumentCode=inst_code,
+            overallStatus=overall,
+        )
+
+    # Sibling product batches for queue + historical comparisons
+    siblings = [
+        ProductBatch(id=_id(), productBatchNumber="PB-2026-000209",
+                     productType=ProductType.PRIMARY_ALUMINUM_INGOT,
+                     weight=22.5, uom="MT",
+                     sourceMetalBatchNumber="MB-2026-001244",
+                     customer="Export Customer", operator="Anil Kumar",
+                     productionDate=_iso(1, 6),
+                     status=ProductBatchStatus.APPROVED, riskLevel=RiskLevel.LOW,
+                     assignedTo="Priya Menon", createdAt=_iso(1, 6),
+                     createdBy="Anil Kumar",
+                     notes="Approved — quality trend stable."),
+        ProductBatch(id=_id(), productBatchNumber="PB-2026-000208",
+                     productType=ProductType.PRIMARY_ALUMINUM_INGOT,
+                     weight=22.0, uom="MT",
+                     sourceMetalBatchNumber="MB-2026-001243",
+                     customer="Domestic Client A", operator="Vikram Singh",
+                     productionDate=_iso(2, 8),
+                     status=ProductBatchStatus.APPROVED, riskLevel=RiskLevel.LOW,
+                     assignedTo="Priya Menon", createdAt=_iso(2, 8),
+                     createdBy="Vikram Singh"),
+        ProductBatch(id=_id(), productBatchNumber="PB-2026-000207",
+                     productType=ProductType.PRIMARY_ALUMINUM_BILLET,
+                     weight=100.0, uom="MT",
+                     sourceMetalBatchNumber="MB-2026-001239",
+                     customer="Extrusion Co.", operator="Suresh Babu",
+                     productionDate=_iso(3, 4),
+                     status=ProductBatchStatus.APPROVED, riskLevel=RiskLevel.LOW,
+                     assignedTo="Priya Menon", createdAt=_iso(3, 4),
+                     createdBy="Suresh Babu"),
+        ProductBatch(id=_id(), productBatchNumber="PB-2026-000206",
+                     productType=ProductType.PRIMARY_ALUMINUM_INGOT,
+                     weight=22.5, uom="MT",
+                     sourceMetalBatchNumber="MB-2026-001242",
+                     customer="Domestic Client B", operator="Anil Kumar",
+                     productionDate=_iso(4, 2),
+                     status=ProductBatchStatus.ON_HOLD, riskLevel=RiskLevel.MEDIUM,
+                     assignedTo="Ravi Iyer", createdAt=_iso(4, 2),
+                     createdBy="Anil Kumar",
+                     notes="On hold — minor elongation deviation."),
+        ProductBatch(id=_id(), productBatchNumber="PB-2026-000205",
+                     productType=ProductType.PRIMARY_ALUMINUM_BILLET,
+                     weight=98.0, uom="MT",
+                     sourceMetalBatchNumber=None,
+                     customer="Extrusion Co.", operator="Suresh Babu",
+                     productionDate=_iso(0, 12),
+                     status=ProductBatchStatus.PENDING_TESTING, riskLevel=RiskLevel.LOW,
+                     assignedTo="Arjun Patel", createdAt=_iso(0, 12),
+                     createdBy="Suresh Babu"),
+        ProductBatch(id=_id(), productBatchNumber="PB-2026-000204",
+                     productType=ProductType.PRIMARY_ALUMINUM_INGOT,
+                     weight=23.0, uom="MT",
+                     sourceMetalBatchNumber=None,
+                     customer="Export Customer", operator="Vikram Singh",
+                     productionDate=_iso(0, 6),
+                     status=ProductBatchStatus.PENDING_SAMPLING, riskLevel=RiskLevel.LOW,
+                     assignedTo="Sneha Iyer", createdAt=_iso(0, 6),
+                     createdBy="Vikram Singh"),
+        ProductBatch(id=_id(), productBatchNumber="PB-2026-000203",
+                     productType=ProductType.PRIMARY_ALUMINUM_INGOT,
+                     weight=22.5, uom="MT",
+                     sourceMetalBatchNumber="MB-2026-001237",
+                     customer="Domestic Client A", operator="Anil Kumar",
+                     productionDate=_iso(6, 0),
+                     status=ProductBatchStatus.REJECTED, riskLevel=RiskLevel.HIGH,
+                     assignedTo="Priya Menon", createdAt=_iso(6, 0),
+                     createdBy="Anil Kumar",
+                     notes="Rejected — elongation 6.5% below spec."),
+    ]
+    for b in siblings:
+        db.product_batches[b.id] = b
+        wfx = workflow_engine.create_workflow("product-quality-testing", b.id)
+        stage_map = {
+            ProductBatchStatus.PENDING_SAMPLING: "batch",
+            ProductBatchStatus.PENDING_TESTING: "sample",
+            ProductBatchStatus.PENDING_REVIEW: "validation",
+            ProductBatchStatus.APPROVED: "release",
+            ProductBatchStatus.ON_HOLD: "review",
+            ProductBatchStatus.REJECTED: "review",
+            ProductBatchStatus.RETEST: "review",
+            ProductBatchStatus.CANCELLED: "review",
+        }
+        workflow_engine.complete_through(wfx, stage_map[b.status], b.assignedTo or "Priya Menon")
+        db.workflows[b.id] = wfx
+
+    # Backfill approved siblings with results to populate historical trends.
+    approved_ingot_vals = [
+        (siblings[0], ProductType.PRIMARY_ALUMINUM_INGOT, [
+            ("UTS", 168.0), ("YieldStrength", 71.0), ("Elongation", 14.0),
+            ("Hardness", 53.0), ("Conductivity", 60.8),
+            ("Length", 711.0), ("Diameter", 100.5), ("Weight", 22.5),
+            ("GrainSize", 80.0), ("Phase", 96.5), ("SurfaceDefects", 1.0),
+        ]),
+        (siblings[1], ProductType.PRIMARY_ALUMINUM_INGOT, [
+            ("UTS", 164.0), ("YieldStrength", 70.0), ("Elongation", 13.8),
+            ("Hardness", 51.5), ("Conductivity", 61.1),
+            ("Length", 709.0), ("Diameter", 99.5), ("Weight", 22.3),
+            ("GrainSize", 81.0), ("Phase", 96.7), ("SurfaceDefects", 1.0),
+        ]),
+        (siblings[2], ProductType.PRIMARY_ALUMINUM_BILLET, [
+            ("UTS", 175.0), ("YieldStrength", 75.0), ("Elongation", 12.0),
+            ("Hardness", 56.0), ("Conductivity", 59.0),
+            ("Length", 1500.0), ("Diameter", 180.0), ("Weight", 100.0),
+            ("GrainSize", 75.0), ("Phase", 96.0), ("SurfaceDefects", 1.0),
+        ]),
+    ]
+    plan_per_type = {
+        ProductType.PRIMARY_ALUMINUM_INGOT: [
+            ("UTS", "UTS", ["UTS", "YieldStrength", "Elongation"], "UTS-01"),
+            ("HARDNESS", "Hardness", ["Hardness"], "HARD-01"),
+            ("CONDUCTIVITY", "Conductivity", ["Conductivity"], "COND-01"),
+            ("DIMENSIONS", "Dimensions & Weight", ["Length", "Diameter", "Weight"], "DIM-01"),
+            ("METALLOGRAPHY", "Microstructure Review", ["GrainSize", "Phase"], "MICRO-01"),
+            ("VISUAL", "Visual Inspection", ["SurfaceDefects"], "VIS-INSP"),
+        ],
+        ProductType.PRIMARY_ALUMINUM_BILLET: [
+            ("UTS", "UTS", ["UTS", "YieldStrength", "Elongation"], "UTS-01"),
+            ("HARDNESS", "Hardness", ["Hardness"], "HARD-01"),
+            ("CONDUCTIVITY", "Conductivity", ["Conductivity"], "COND-01"),
+            ("DIMENSIONS", "Dimensions & Weight", ["Length", "Diameter", "Weight"], "DIM-01"),
+            ("METALLOGRAPHY", "Microstructure Review", ["GrainSize", "Phase"], "MICRO-01"),
+            ("VISUAL", "Visual Inspection", ["SurfaceDefects"], "VIS-INSP"),
+        ],
+    }
+
+    for sib, ptype, vals in approved_ingot_vals:
+        s = ProductSample(
+            id=_id(),
+            sampleId=f"PQS-{sib.productBatchNumber.split('-')[-1]}-A",
+            productBatchId=sib.id,
+            collectionDate=_iso(3, 1),
+            collectedBy="Sneha Iyer",
+            status=SampleStatus.COLLECTED,
+        )
+        db.product_samples[s.id] = s
+        vals_by_param = dict(vals)
+        for code, name, params, inst_code in plan_per_type[ptype]:
+            t = ProductTest(
+                id=_id(), sampleId=s.id,
+                code=code, name=name, parameters=params,
+                instrumentCode=inst_code,
+                status=TestStatus.COMPLETED, assignedAt=_iso(3, 1),
+            )
+            db.product_tests[t.id] = t
+            rvals = []
+            overall = ResultStatus.PASS
+            for p in params:
+                v = vals_by_param.get(p)
+                if v is None:
+                    continue
+                spec = product_fw.spec_for(ptype, p)
+                unit = product_fw.unit_for(p)
+                if spec:
+                    lo, hi, _ = spec
+                    status_val = product_fw._status_for(v, lo, hi)
+                else:
+                    lo, hi, status_val = None, None, ResultStatus.PASS
+                if status_val == ResultStatus.FAIL:
+                    overall = ResultStatus.FAIL
+                elif status_val == ResultStatus.WARNING and overall == ResultStatus.PASS:
+                    overall = ResultStatus.WARNING
+                rvals.append(ResultValue(
+                    parameter=p, value=v,
+                    unit=unit or "",
+                    specMin=lo, specMax=hi, status=status_val,
+                ))
+            rid_h = _id()
+            db.product_results[rid_h] = ProductResult(
+                id=rid_h, testId=t.id, sampleId=s.id,
+                source=ResultSource.INSTRUMENT,
+                values=rvals,
+                enteredBy=f"System ({inst_code})",
+                enteredAt=_iso(3, 1),
+                instrumentCode=inst_code,
+                overallStatus=overall,
+            )
+
+    audit.record("Vikram Singh", "Production Operator", "create", "product-batch",
+                 hero.id, None, hero.model_dump())
+    audit.record("Sneha Iyer", "Lab Analyst", "create", "product-sample",
+                 hero_sample.id, None, hero_sample.model_dump())
+    audit.record("System", "Lab Analyst", "import", "product-result",
+                 list(db.product_results.values())[0].id, None,
+                 {"source": "Instrument", "instrument": "UTS-01"})
+
+    notif.emit("Product batch created successfully",
+               f"{hero.productBatchNumber} created — Primary Aluminum Ingot (22.5 MT).",
+               entity_type="product-batch", entity_id=hero.id)
+    notif.emit("Product sample collected",
+               f"Sample {hero_sample.sampleId} drawn for {hero.productBatchNumber}.",
+               entity_type="product-sample", entity_id=hero_sample.id)
+    notif.emit("Mechanical results imported",
+               "UTS, YieldStrength, Elongation, Hardness, Conductivity, Dimensions, "
+               "Metallography and Visual captured.",
+               entity_type="product-batch", entity_id=hero.id)
+    notif.emit("Product validation completed",
+               f"{hero.productBatchNumber} ready for QA review — 97/100 compliance.",
+               entity_type="product-batch", entity_id=hero.id)
+
+
+# --------------------------------------------------------------------------
+# Phase 5 helper: seeds hero certificate COA-2026-001245 and siblings.
+# --------------------------------------------------------------------------
+def _seed_certificates() -> None:
+    from app.frameworks import audit, notifications as notif
+
+    hero_pb = db.product_batch_by_number("PB-2026-000210")
+    if not hero_pb:
+        return  # safety
+
+    # Build customer specs from hero product batch results (one per parameter).
+    hero_specs: List[CustomerSpec] = []
+    seen: set[str] = set()
+    for r in db.presults_for_batch(hero_pb.id):
+        for v in r.values:
+            if v.parameter in seen:
+                continue
+            seen.add(v.parameter)
+            hero_specs.append(CustomerSpec(
+                parameter=v.parameter,
+                unit=v.unit or "",
+                requiredMin=v.specMin,
+                requiredMax=v.specMax,
+                requiredTarget=None,
+                actualValue=v.value,
+                complianceStatus=v.status,
+            ))
+
+    hero_cert_number = "COA-2026-001245"
+    hero_cert = Certificate(
+        id=_id(),
+        certificateNumber=hero_cert_number,
+        productBatchNumber=hero_pb.productBatchNumber,
+        productBatchId=hero_pb.id,
+        customer="Export Customer",
+        customerSpecs=hero_specs,
+        status=CertificateStatus.ISSUED,
+        dispatchStatus=DispatchStatus.READY,
+        issuedAt=_iso(0, 2),
+        issuedBy="Priya Menon",
+        createdAt=_iso(0, 3),
+        createdBy="Aditya Rao",
+        qrCodeValue=hero_cert_number,
+        barcodeValue=hero_cert_number,
+        notes="Issued for export shipment.",
+    )
+    db.certificates[hero_cert.id] = hero_cert
+
+    # Sibling certificates linked to approved product batches.
+    approved_pbs = [b for b in db.product_batches.values()
+                    if b.status == ProductBatchStatus.APPROVED]
+
+    sibling_specs = [
+        # (status, dispatchStatus, customer, notes)
+        (CertificateStatus.ISSUED, DispatchStatus.RELEASED, "Export Customer", "Released for shipment."),
+        (CertificateStatus.ISSUED, DispatchStatus.HELD, "Domestic Client A", "Held — customer documentation pending."),
+        (CertificateStatus.DRAFT, DispatchStatus.PENDING, "Extrusion Co.", "Draft — awaiting QA sign-off."),
+        (CertificateStatus.CANCELLED, DispatchStatus.PENDING, "Domestic Client B", "Cancelled — customer order withdrawn."),
+    ]
+
+    cert_seq = 1244
+    for (st, ds, cust, note), pb in zip(sibling_specs, approved_pbs):
+        cert_seq -= 1
+        sibling_number = f"COA-2026-{cert_seq:06d}"
+        specs: List[CustomerSpec] = []
+        seen2: set[str] = set()
+        for r in db.presults_for_batch(pb.id):
+            for v in r.values:
+                if v.parameter in seen2:
+                    continue
+                seen2.add(v.parameter)
+                specs.append(CustomerSpec(
+                    parameter=v.parameter,
+                    unit=v.unit or "",
+                    requiredMin=v.specMin,
+                    requiredMax=v.specMax,
+                    actualValue=v.value,
+                    complianceStatus=v.status,
+                ))
+        sibling = Certificate(
+            id=_id(),
+            certificateNumber=sibling_number,
+            productBatchNumber=pb.productBatchNumber,
+            productBatchId=pb.id,
+            customer=cust,
+            customerSpecs=specs,
+            status=st,
+            dispatchStatus=ds,
+            issuedAt=_iso(2, 0) if st == CertificateStatus.ISSUED else None,
+            issuedBy="Priya Menon" if st == CertificateStatus.ISSUED else None,
+            createdAt=_iso(3, 0),
+            createdBy="Aditya Rao",
+            qrCodeValue=sibling_number,
+            barcodeValue=sibling_number,
+            notes=note,
+        )
+        db.certificates[sibling.id] = sibling
+
+    audit.record("Aditya Rao", "QA Engineer", "create", "certificate",
+                 hero_cert.id, None, hero_cert.model_dump())
+    audit.record("Priya Menon", "QA Manager", "issue", "certificate",
+                 hero_cert.id, None, {"issuedBy": "Priya Menon"})
+
+    notif.emit("Certificate generated",
+               f"{hero_cert.certificateNumber} generated for {hero_pb.productBatchNumber} → Export Customer.",
+               entity_type="certificate", entity_id=hero_cert.id)
+    notif.emit("Certificate issued",
+               f"{hero_cert.certificateNumber} issued for {hero_pb.productBatchNumber}.",
+               entity_type="certificate", entity_id=hero_cert.id)
+

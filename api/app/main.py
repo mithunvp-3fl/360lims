@@ -19,6 +19,10 @@ from app.routers import (
     dashboard,
     auth,
     qualifications,
+    metal_batches,
+    product_batches,
+    certificates,
+    traceability,
 )
 from app.seed import seed
 
@@ -50,6 +54,10 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
     app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
     app.include_router(qualifications.router, prefix="/api/v1", tags=["qualifications"])
+    app.include_router(metal_batches.router, prefix="/api/v1", tags=["metal-batches"])
+    app.include_router(product_batches.router, prefix="/api/v1", tags=["product-batches"])
+    app.include_router(certificates.router, prefix="/api/v1", tags=["certificates"])
+    app.include_router(traceability.router, prefix="/api/v1", tags=["traceability"])
 
     @app.get("/api/v1/health")
     def health() -> dict:

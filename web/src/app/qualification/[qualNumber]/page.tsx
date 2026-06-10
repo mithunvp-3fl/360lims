@@ -11,6 +11,8 @@ import { ProcessReadinessPanel } from "@/components/qualification/process-readin
 import { QualificationApprovalCenter } from "@/components/qualification/qualification-approval-center";
 import { QualificationActivityFeed } from "@/components/qualification/qualification-activity-feed";
 import { QualificationAuditDrawer } from "@/components/qualification/qualification-audit-drawer";
+import { GenealogyCard } from "@/components/genealogy/genealogy-card";
+import { QualityJourneyPanel } from "@/components/genealogy/quality-journey-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMaterials,
@@ -59,6 +61,7 @@ export default function QualificationWorkbenchPage() {
             onShowHistory={() => setAuditOpen(true)}
           />
           <WorkflowTimeline workflow={workflow} />
+          <GenealogyCard nodeType="process-qualification" nodeKey={n} />
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
             <div className="xl:col-span-2 space-y-5">
               <QualificationOverview
@@ -71,6 +74,7 @@ export default function QualificationWorkbenchPage() {
             </div>
             <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
               <ProcessReadinessPanel qualificationNumber={n} />
+              <QualityJourneyPanel nodeType="process-qualification" nodeKey={n} />
               <QualificationApprovalCenter qualification={qualification} />
               <QualificationActivityFeed
                 qualificationNumber={n}

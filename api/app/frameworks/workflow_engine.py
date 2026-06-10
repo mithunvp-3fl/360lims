@@ -108,3 +108,35 @@ PROCESS_QUALIFICATION = WorkflowDefinition(
     ],
 )
 register(PROCESS_QUALIFICATION)
+
+
+# --- Metal Quality Control definition (Phase 3) ---
+METAL_QUALITY_CONTROL = WorkflowDefinition(
+    module_key="metal-quality-control",
+    entity_type="metal-batch",
+    stages=[
+        StageDef("batch", "Metal Batch"),
+        StageDef("sample", "Sample"),
+        StageDef("oes", "OES Analysis"),
+        StageDef("validation", "Validation"),
+        StageDef("review", "Review"),
+        StageDef("release", "Casting Release"),
+    ],
+)
+register(METAL_QUALITY_CONTROL)
+
+
+# --- Product Quality Testing definition (Phase 4) ---
+PRODUCT_QUALITY_TESTING = WorkflowDefinition(
+    module_key="product-quality-testing",
+    entity_type="product-batch",
+    stages=[
+        StageDef("batch", "Product Batch"),
+        StageDef("sample", "Sample"),
+        StageDef("testing", "Product Testing"),
+        StageDef("validation", "Validation"),
+        StageDef("review", "QA Review"),
+        StageDef("release", "Product Approval"),
+    ],
+)
+register(PRODUCT_QUALITY_TESTING)

@@ -11,6 +11,8 @@ import { ActivityFeed } from "@/components/workbench/activity-feed";
 import { QualityInsightsPanel } from "@/components/workbench/quality-insights-panel";
 import { ApprovalCenter } from "@/components/workbench/approval-center";
 import { AuditDrawer } from "@/components/workbench/audit-drawer";
+import { GenealogyCard } from "@/components/genealogy/genealogy-card";
+import { QualityJourneyPanel } from "@/components/genealogy/quality-journey-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMaterials,
@@ -59,6 +61,7 @@ export default function WorkbenchPage() {
             onShowHistory={() => setAuditOpen(true)}
           />
           <WorkflowTimeline workflow={workflow} />
+          <GenealogyCard nodeType="raw-material" nodeKey={lot} />
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
             <div className="xl:col-span-2 space-y-5">
               <MaterialOverview receipt={receipt} supplier={supplier} material={material} />
@@ -67,6 +70,7 @@ export default function WorkbenchPage() {
             </div>
             <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
               <QualityInsightsPanel lot={lot} />
+              <QualityJourneyPanel nodeType="raw-material" nodeKey={lot} />
               <ApprovalCenter receipt={receipt} />
               <ActivityFeed lot={lot} receiptId={receipt.id} />
             </aside>

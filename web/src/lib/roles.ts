@@ -33,10 +33,38 @@ export type Permission =
   | "qualification:edit"
   | "qualification:release"
   | "qualification:hold"
-  | "qualification:reject";
+  | "qualification:reject"
+  // Phase 3 — Metal Quality Control
+  | "metal-batch:create"
+  | "metal-batch:edit"
+  | "metal-batch:release"
+  | "metal-batch:hold"
+  | "metal-batch:reject"
+  | "metal-batch:downgrade"
+  // Phase 4 — Product Quality Testing
+  // Role mapping: PRD references "Production Engineer" → reuse "stores-executive";
+  // "Dispatch Executive" → reuse "qa-manager". No new RoleKeys added.
+  | "product-batch:create"
+  | "product-batch:edit"
+  | "product-batch:approve"
+  | "product-batch:hold"
+  | "product-batch:reject"
+  | "product-batch:retest"
+  // Phase 5 — Certificate & Dispatch
+  | "certificate:create"
+  | "certificate:issue"
+  | "certificate:dispatch-approve"
+  | "certificate:dispatch-hold"
+  | "certificate:dispatch-reject"
+  | "certificate:override";
 
 const MATRIX: Record<RoleKey, Permission[]> = {
-  "stores-executive": ["receipt:create", "receipt:edit"],
+  "stores-executive": [
+    "receipt:create", "receipt:edit",
+    "metal-batch:create", "metal-batch:edit",
+    // PRD §4: "Production Engineer" maps to stores-executive.
+    "product-batch:create", "product-batch:edit",
+  ],
   sampler: ["sample:create", "sample:recollect"],
   "lab-analyst": [
     "result:enter", "result:import", "result:upload",
@@ -44,6 +72,9 @@ const MATRIX: Record<RoleKey, Permission[]> = {
   "qa-engineer": [
     "approval:hold", "approval:recommend",
     "qualification:create", "qualification:edit", "qualification:hold",
+    "metal-batch:hold",
+    "product-batch:hold", "product-batch:edit",
+    "certificate:create",
   ],
   "qa-manager": [
     "receipt:create", "receipt:edit",
@@ -53,6 +84,16 @@ const MATRIX: Record<RoleKey, Permission[]> = {
     "approval:approve", "approval:reject", "approval:override",
     "qualification:create", "qualification:edit",
     "qualification:release", "qualification:hold", "qualification:reject",
+    "metal-batch:create", "metal-batch:edit",
+    "metal-batch:release", "metal-batch:hold", "metal-batch:reject",
+    "metal-batch:downgrade",
+    // PRD §4: "Dispatch Executive" maps to qa-manager.
+    "product-batch:create", "product-batch:edit",
+    "product-batch:approve", "product-batch:hold",
+    "product-batch:reject", "product-batch:retest",
+    "certificate:create", "certificate:issue",
+    "certificate:dispatch-approve", "certificate:dispatch-hold",
+    "certificate:dispatch-reject", "certificate:override",
   ],
   viewer: [],
 };

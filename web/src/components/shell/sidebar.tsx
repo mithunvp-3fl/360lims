@@ -7,11 +7,17 @@ import {
   BarChart3,
   Boxes,
   ClipboardList,
+  Droplets,
+  FileCheck,
+  Flame,
   FlaskRound,
   Gauge,
+  GitBranch,
   LineChart,
   Microscope,
+  Package,
   Settings,
+  Stamp,
   Workflow as WorkflowIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,6 +40,13 @@ const sections: Array<{
     items: [
       { label: "Process Material Qualification", href: "/qualification", icon: <FlaskRound className="h-4 w-4" /> },
       { label: "Qualification Workbench", href: "/qualification/PMQ-2026-001245", icon: <WorkflowIcon className="h-4 w-4" />, badge: "Demo" },
+      { label: "Metal Quality Control", href: "/metal-quality", icon: <Droplets className="h-4 w-4" /> },
+      { label: "Metal QC Workbench", href: "/metal-quality/MB-2026-001245", icon: <Flame className="h-4 w-4" />, badge: "Demo" },
+      { label: "Product Quality Testing", href: "/product-quality", icon: <Package className="h-4 w-4" /> },
+      { label: "Product QC Workbench", href: "/product-quality/PB-2026-000210", icon: <Boxes className="h-4 w-4" />, badge: "Demo" },
+      { label: "Certificate & Dispatch", href: "/certificates", icon: <Stamp className="h-4 w-4" /> },
+      { label: "Certificate Workbench", href: "/certificates/COA-2026-001245", icon: <FileCheck className="h-4 w-4" />, badge: "Demo" },
+      { label: "Traceability Center", href: "/traceability", icon: <GitBranch className="h-4 w-4" />, badge: "New" },
     ],
   },
   {
