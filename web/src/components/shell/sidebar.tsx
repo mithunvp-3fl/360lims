@@ -7,10 +7,12 @@ import {
   BarChart3,
   Boxes,
   ClipboardList,
+  FlaskRound,
   Gauge,
   LineChart,
   Microscope,
   Settings,
+  Workflow as WorkflowIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +26,14 @@ const sections: Array<{
     items: [
       { label: "Dashboard", href: "/dashboard", icon: <Gauge className="h-4 w-4" /> },
       { label: "Inspection Queue", href: "/inspection", icon: <ClipboardList className="h-4 w-4" /> },
-      { label: "Workbench", href: "/inspection/LOT-2026-0042", icon: <Microscope className="h-4 w-4" />, badge: "Demo" },
+      { label: "Inspection Workbench", href: "/inspection/LOT-2026-0042", icon: <Microscope className="h-4 w-4" />, badge: "Demo" },
+    ],
+  },
+  {
+    label: "Quality Operations",
+    items: [
+      { label: "Process Material Qualification", href: "/qualification", icon: <FlaskRound className="h-4 w-4" /> },
+      { label: "Qualification Workbench", href: "/qualification/PMQ-2026-001245", icon: <WorkflowIcon className="h-4 w-4" />, badge: "Demo" },
     ],
   },
   {

@@ -4,6 +4,8 @@ End-to-end walkthrough of the **Incoming Material Inspection** module. Designed 
 
 **Estimated run time:** ~15 minutes for the full script, ~6 minutes for the lightning version (chapters 0, 2, 4, 5).
 
+> **Related:** Phase 2 (Process Material Qualification) has its own walkthrough in [`DEMO_STEP2.md`](./DEMO_STEP2.md). The two modules share the same workbench shell — the framework angle in Chapter 5 below uses Phase 2 as live proof.
+
 ---
 
 ## Chapter 0 · Preflight (do this 60s before the demo)
@@ -114,9 +116,9 @@ End-to-end walkthrough of the **Incoming Material Inspection** module. Designed 
 
 | # | Action | UI pointer | What to call out |
 |---|---|---|---|
-| 3.1 | Click **View history** (top-right of the header). | A wide modal opens, full of audit entries. | "Same modal works for any lot. Each row shows entity, action, actor, role, timestamp." |
-| 3.2 | Click the small **▸ View change** triangle on any entry. | JSON diff before/after expands. | "Field-level diff. Auditors love this. Pharma, automotive, aerospace — this passes the regulator test." |
-| 3.3 | Close the modal. | Click the **×** top-right. | — |
+| 3.1 | Click **View history** (top-right of the header). | A right-side sheet slides in, full of audit entries. | "Same drawer works for any lot. Each row shows entity, action, actor, role, timestamp." |
+| 3.2 | Click the small **▸ View change** triangle on any entry. | Field-level (or parameter-level) diff expands inline. | "Before / after diff per field. Auditors love this. Pharma, automotive, aerospace — this passes the regulator test." |
+| 3.3 | Close the drawer. | Click outside the sheet or the **×** top-right. | — |
 
 ---
 
@@ -128,7 +130,7 @@ End-to-end walkthrough of the **Incoming Material Inspection** module. Designed 
 
 | # | Role | Action | UI pointer | What to call out |
 |---|---|---|---|---|
-| 4.1.1 | **Switch role** | Click the shield-icon chip on the topbar → choose **Stores Executive**. | Top right; the chip text changes to "Stores Executive". | "Role switcher in production would be SSO-driven; here it's instant for the demo." |
+| 4.1.1 | **Switch role** | Click the **avatar + name chip** on the topbar (far right) → in the dropdown, under **Switch role (demo)**, click **Stores Executive** (shield icon next to each role). | Top right; after the click the chip's role line updates to "Stores Executive". | "Role switcher in production would be SSO-driven; here it's instant for the demo." |
 | 4.1.2 | Stores Executive | Click **Inspection Queue** in the sidebar. | Left rail, "Operate" section. | "This is the queue. Every lot, every status." |
 | 4.1.3 | Stores Executive | Click **+ New Receipt** (top-right of the page). | Primary button. | "Dialog opens — note the role gating: only Stores Executive and QA Manager can create receipts." |
 | 4.1.4 | Stores Executive | Fill the form: Supplier = **ABC Metals**, Material = **Aluminum Scrap**, Quantity = **22**, Vehicle = **HR-55-AB-9999**, PO = **PO-2026-200**. | Two-column grid in the dialog. | "Vehicle and PO are mandatory. The system generates the next lot number automatically." |
@@ -182,21 +184,24 @@ End-to-end walkthrough of the **Incoming Material Inspection** module. Designed 
 
 | # | Action | UI pointer | What to call out |
 |---|---|---|---|
-| 4.6.1 | Click **View history** (top-right of header). | Modal opens. | "Read down the list: receipt created (Stores Executive), sample created (Sampler), XRF imported (System / Lab Analyst), OES manual entry with reason (Lab Analyst), moisture file uploaded (Lab Analyst), validation completed (system), approval (QA Manager)." |
-| 4.6.2 | — | Close the modal. | — | "Every role's contribution is recorded. Auditor-ready." |
+| 4.6.1 | Click **View history** (top-right of header). | Audit side sheet opens. | "Read down the list: receipt created (Stores Executive), sample created (Sampler), XRF imported (System / Lab Analyst), OES manual entry with reason (Lab Analyst), moisture file uploaded (Lab Analyst), validation completed (system), approval (QA Manager)." |
+| 4.6.2 | — | Close the drawer. | — | "Every role's contribution is recorded. Auditor-ready." |
 
 ---
 
 ## Chapter 5 · The framework angle (Role: any)
 
-> Goal: 60-second close — why this isn't a one-module demo.
+> Goal: 60-second close — why this isn't a one-module demo. **The proof now lives in the product, not in slides:** Phase 2 (Process Material Qualification) is built on the same shell.
 
 | # | Talking point | What to show |
 |---|---|---|
-| 5.1 | "Same workbench, different module." | Sidebar → point at the *Future modules* section (Reports, Heat Chemistry, Settings — all marked Coming soon). |
-| 5.2 | "Adding Heat Chemistry is one workflow definition + a section composition. No framework code changes." | Optional: open `api/app/frameworks/workflow_engine.py` in the editor for 5 seconds — show the registry pattern. |
-| 5.3 | "Same audit, same notifications, same insights engine — they're framework-level, not module-level." | Click the bell icon to show the cross-module notification stream. |
-| 5.4 | "Instrument Integrations and Master Data are pure configuration — no module knows about specific instruments or suppliers." | Sidebar → *Instrument Integrations* (5s glance) → *Master Data* (5s glance). |
+| 5.1 | "Same workbench, different module — and we already shipped the second one." | Sidebar → point at the **Quality Operations** group → click **Process Material Qualification**. Land on `/qualification`. "Same queue ergonomics. Same shell. Different question — Phase 2 decides whether production can consume the batch we just approved." |
+| 5.2 | "The hand-off is one link." | Open the hero qualification `PMQ-2026-001245`. Point at the *Source receipt* row showing `LOT-2026-0042` (a link). "Same batch as the Phase 1 hero we walked through. One click each direction." |
+| 5.3 | "Workflow engine, audit, notifications, instrument simulation — registered, not rewritten." | Optional: open `api/app/frameworks/workflow_engine.py` for 5 seconds — show `register(INCOMING_INSPECTION)` next to `register(PROCESS_QUALIFICATION)`. |
+| 5.4 | "Quality Insights is a pattern, not a single panel — Phase 1 surfaces Supplier Health, Phase 2 surfaces **Process Readiness**. The right-rail composition adapts; the engine pattern doesn't." | Toggle between the inspection workbench (`/inspection/LOT-2026-0042`) and the qualification workbench (`/qualification/PMQ-2026-001245`). Point at the right-rail hero card name change — Supplier Health → Process Readiness. |
+| 5.5 | "Heat Chemistry, Casting, MTC & Dispatch are next — and they reuse this exact shell with a new workflow definition + a new insight pattern. No framework code changes." | Sidebar → point at the *Future modules* section (Reports, Heat Chemistry, Settings — marked Coming soon). |
+| 5.6 | "Same audit, same notifications — they're framework-level, not module-level. Now spanning two modules." | Click the bell icon — events from both Phase 1 (`receipt`, `sample`, `result`) and Phase 2 (`qualification`, `qualification-sample`, `qualification-result`) are interleaved by timestamp. |
+| 5.7 | "Instrument Integrations and Master Data are pure configuration — no module knows about specific instruments or suppliers." | Sidebar → *Instrument Integrations* (5s glance — notice XRF/OES from Phase 1 alongside CSA/PYC/APA/ERA for Phase 2) → *Master Data* (5s glance). |
 
 ---
 
@@ -239,4 +244,4 @@ If you only have 6 minutes:
 3. **Instrument import** (60s) — switch to Lab Analyst, click Import on one test row, narrate the 6-stage flow.
 4. **Approve** (45s) — switch to QA Manager, approve, watch the workflow finish.
 5. **Audit** (30s) — open View history, read down the events.
-6. **Framework close** (30s) — sidebar reveal that Heat Chemistry, MTC, etc. reuse the same shell.
+6. **Framework close** (30s) — sidebar reveal that **Phase 2 (Process Material Qualification) is already built** on the same shell, with Heat Chemistry, MTC, etc. lined up next.

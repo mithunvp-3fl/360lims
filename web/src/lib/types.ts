@@ -271,3 +271,114 @@ export interface RoleQueue {
   description: string;
   items: RoleQueueItem[];
 }
+
+// =====================================================================
+// Phase 2 — Process Material Qualification
+// =====================================================================
+export type ConsumptionArea = "Carbon Plant" | "Potline" | "Casthouse" | "R&D";
+
+export type QualificationStatus =
+  | "Pending Sampling"
+  | "Pending Testing"
+  | "Under Review"
+  | "Released"
+  | "Rejected"
+  | "On Hold"
+  | "Cancelled";
+
+export type QualificationDecision = "Release" | "Hold" | "Reject";
+
+export interface Qualification {
+  id: string;
+  qualificationNumber: string;
+  materialId: string;
+  batchNumber: string;
+  supplierId?: string | null;
+  sourceLotNumber?: string | null;
+  consumptionArea: ConsumptionArea;
+  quantity: number;
+  uom: string;
+  status: QualificationStatus;
+  riskLevel: RiskLevel;
+  assignedTo?: string | null;
+  requestedAt: string;
+  requestedBy: string;
+  notes?: string | null;
+}
+
+export interface QualificationSample {
+  id: string;
+  sampleId: string;
+  qualificationId: string;
+  collectionDate: string;
+  collectedBy: string;
+  status: SampleStatus;
+  notes?: string | null;
+}
+
+export interface QualificationTest {
+  id: string;
+  sampleId: string;
+  code: string;
+  name: string;
+  parameters: string[];
+  instrumentCode?: string | null;
+  status: TestStatus;
+  assignedAt?: string | null;
+}
+
+export interface QualificationResult {
+  id: string;
+  testId: string;
+  sampleId: string;
+  source: ResultSource;
+  values: ResultValue[];
+  enteredBy: string;
+  enteredAt: string;
+  instrumentCode?: string | null;
+  reason?: string | null;
+  fileName?: string | null;
+  overallStatus: ResultStatus;
+}
+
+export interface QualificationApproval {
+  id: string;
+  qualificationId: string;
+  decision: QualificationDecision;
+  reason?: string | null;
+  decidedBy: string;
+  decidedAt: string;
+}
+
+export type ProcessRecommendation =
+  | "RELEASE"
+  | "REVIEW"
+  | "HOLD"
+  | "REJECT"
+  | "AWAITING DATA";
+
+export interface HistoricalBatch {
+  qualificationNumber: string;
+  batchNumber: string;
+  requestedAt: string;
+  outcome: string;
+  readinessScore: number;
+  riskLevel: RiskLevel;
+}
+
+export interface ProcessInsight {
+  qualificationId: string;
+  recommendedAction: ProcessRecommendation;
+  recommendedTarget: string;
+  rationale: string;
+  riskLevel: RiskLevel;
+  processReadiness: number;
+  processReadinessTrend: number[];
+  testsCompleted: number;
+  testsTotal: number;
+  observations: string[];
+  historicalBatches: HistoricalBatch[];
+  parameterTrends: ParameterTrend[];
+  complianceScore: number;
+  deviationCount: number;
+}

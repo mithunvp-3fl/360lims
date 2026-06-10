@@ -92,3 +92,19 @@ INCOMING_INSPECTION = WorkflowDefinition(
     ],
 )
 register(INCOMING_INSPECTION)
+
+
+# --- Process Material Qualification definition (Phase 2) ---
+PROCESS_QUALIFICATION = WorkflowDefinition(
+    module_key="process-material-qualification",
+    entity_type="qualification",
+    stages=[
+        StageDef("request", "Request"),
+        StageDef("sample", "Sample"),
+        StageDef("testing", "Testing"),
+        StageDef("validation", "Validation"),
+        StageDef("review", "Review"),
+        StageDef("release", "Release"),
+    ],
+)
+register(PROCESS_QUALIFICATION)

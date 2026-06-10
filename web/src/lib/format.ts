@@ -1,4 +1,10 @@
-import type { ReceiptStatus, ResultStatus, RiskLevel } from "./types";
+import type {
+  ProcessRecommendation,
+  QualificationStatus,
+  ReceiptStatus,
+  ResultStatus,
+  RiskLevel,
+} from "./types";
 
 export function statusToAccent(status: ReceiptStatus): "info" | "success" | "warning" | "danger" | "muted" {
   switch (status) {
@@ -27,4 +33,31 @@ export function resultStatusToAccent(status: ResultStatus): "success" | "warning
 
 export function formatNumber(n: number, opts: Intl.NumberFormatOptions = {}) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, ...opts }).format(n);
+}
+
+export function qualificationStatusToAccent(
+  status: QualificationStatus,
+): "info" | "success" | "warning" | "danger" | "muted" {
+  switch (status) {
+    case "Released": return "success";
+    case "Rejected": return "danger";
+    case "On Hold": return "warning";
+    case "Under Review": return "info";
+    case "Pending Testing": return "info";
+    case "Pending Sampling": return "muted";
+    case "Cancelled": return "muted";
+    default: return "muted";
+  }
+}
+
+export function recommendationToAccent(
+  action: ProcessRecommendation,
+): "success" | "info" | "warning" | "danger" | "muted" {
+  switch (action) {
+    case "RELEASE": return "success";
+    case "REVIEW": return "info";
+    case "HOLD": return "warning";
+    case "REJECT": return "danger";
+    default: return "muted";
+  }
 }

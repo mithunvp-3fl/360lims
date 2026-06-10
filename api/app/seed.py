@@ -16,6 +16,16 @@ from app.schemas.sample import Sample, SampleStatus
 from app.schemas.test import Test, TestStatus
 from app.schemas.result import Result, ResultSource, ResultStatus, ResultValue
 from app.schemas.instrument import Instrument, InstrumentStatus, InstrumentType
+from app.schemas.qualification import (
+    ConsumptionArea,
+    Qualification,
+    QualificationApproval,
+    QualificationDecision,
+    QualificationResult,
+    QualificationSample,
+    QualificationStatus,
+    QualificationTest,
+)
 from app.frameworks import workflow_engine
 from app.store import db
 
@@ -91,15 +101,72 @@ def seed() -> None:
             id=_id(), code="MAT-CCOK", name="Calcined Coke", category="Carbon", uom="MT",
             specifications=[
                 Specification(parameter="Carbon", unit="%", minValue=98.0, maxValue=99.5, targetValue=98.8),
-                Specification(parameter="Sulphur", unit="%", minValue=0.0, maxValue=3.0, targetValue=1.8),
+                Specification(parameter="Sulphur", unit="%", minValue=0.0, maxValue=3.0, targetValue=1.25),
+                Specification(parameter="Moisture", unit="%", minValue=0.0, maxValue=0.5, targetValue=0.35),
+                Specification(parameter="Density", unit="g/cc", minValue=1.95, maxValue=2.15, targetValue=2.08),
+                Specification(parameter="Air Permeability", unit="nPm", minValue=10.0, maxValue=20.0, targetValue=14.5),
+                Specification(parameter="Electrical Resistance", unit="µΩm", minValue=40.0, maxValue=70.0, targetValue=52.0),
+            ],
+            requiredTests=["CS", "MOISTURE", "SULPHUR", "DENSITY", "AIR_PERM", "ELEC_RES"],
+        ),
+        Material(
+            id=_id(), code="MAT-CTPI", name="Coal Tar Pitch", category="Carbon", uom="MT",
+            specifications=[
+                Specification(parameter="Softening Point", unit="°C", minValue=105.0, maxValue=120.0, targetValue=110.0),
+                Specification(parameter="Density", unit="g/cc", minValue=1.28, maxValue=1.34, targetValue=1.31),
+                Specification(parameter="Viscosity", unit="cP", minValue=180.0, maxValue=260.0, targetValue=220.0),
+            ],
+            requiredTests=["SOFTENING_POINT", "DENSITY", "VISCOSITY"],
+        ),
+        Material(
+            id=_id(), code="MAT-CRYO", name="Cryolite", category="Bath", uom="MT",
+            specifications=[
+                Specification(parameter="Fluoride", unit="%", minValue=53.0, maxValue=56.0, targetValue=54.3),
+                Specification(parameter="AlF3", unit="%", minValue=11.0, maxValue=14.0, targetValue=12.5),
+                Specification(parameter="CaF2", unit="%", minValue=2.0, maxValue=5.0, targetValue=3.5),
+                Specification(parameter="NaF", unit="%", minValue=28.0, maxValue=33.0, targetValue=30.0),
                 Specification(parameter="Moisture", unit="%", minValue=0.0, maxValue=0.5, targetValue=0.2),
             ],
-            requiredTests=["CS", "MOISTURE"],
+            requiredTests=["FLUORIDE", "COMPOSITION", "MOISTURE"],
+        ),
+        Material(
+            id=_id(), code="MAT-ALF3", name="Aluminum Fluoride", category="Bath", uom="MT",
+            specifications=[
+                Specification(parameter="AlF3", unit="%", minValue=92.0, maxValue=96.0, targetValue=94.0),
+                Specification(parameter="Moisture", unit="%", minValue=0.0, maxValue=0.5, targetValue=0.18),
+            ],
+            requiredTests=["COMPOSITION", "MOISTURE"],
+        ),
+        Material(
+            id=_id(), code="MAT-BATH", name="Bath Material", category="Bath", uom="MT",
+            specifications=[
+                Specification(parameter="Cryolite Ratio", unit="", minValue=2.1, maxValue=2.5, targetValue=2.3),
+                Specification(parameter="Alumina Phase", unit="%", minValue=2.0, maxValue=6.0, targetValue=4.0),
+                Specification(parameter="Moisture", unit="%", minValue=0.0, maxValue=0.5, targetValue=0.2),
+            ],
+            requiredTests=["COMPOSITION", "PHASE", "MOISTURE"],
+        ),
+        Material(
+            id=_id(), code="MAT-CADD", name="Carbon Additive", category="Carbon", uom="MT",
+            specifications=[
+                Specification(parameter="Carbon", unit="%", minValue=97.0, maxValue=99.0, targetValue=98.2),
+                Specification(parameter="Sulphur", unit="%", minValue=0.0, maxValue=1.5, targetValue=0.8),
+            ],
+            requiredTests=["CS", "SULPHUR"],
+        ),
+        Material(
+            id=_id(), code="MAT-PCOK", name="Pet Coke", category="Carbon", uom="MT",
+            specifications=[
+                Specification(parameter="Sulphur", unit="%", minValue=0.0, maxValue=3.5, targetValue=2.4),
+                Specification(parameter="Moisture", unit="%", minValue=0.0, maxValue=0.8, targetValue=0.4),
+                Specification(parameter="Density", unit="g/cc", minValue=1.85, maxValue=2.05, targetValue=1.96),
+            ],
+            requiredTests=["SULPHUR", "MOISTURE", "DENSITY"],
         ),
     ]
     for m in materials:
         db.materials[m.id] = m
-    al_scrap, pr_al, si_metal, c_coke = materials
+    al_scrap, pr_al, si_metal, c_coke, ctpi, cryolite, alf3, bath_mat, c_additive, pet_coke = materials
 
     # --- Instruments ---
     instruments = [
@@ -134,6 +201,71 @@ def seed() -> None:
             location="Lab 2 — Combustion", lastImportAt=_iso(0, 12),
             lastHeartbeatAt=_iso(0, 1), importsThisWeek=18,
             supportedParameters=["Moisture"],
+        ),
+        # --- Phase 2: Process Qualification instruments ---
+        Instrument(
+            id=_id(), code="CSA-01", name="Carbon Sulphur Analyzer 01",
+            type=InstrumentType.CS, vendor="Eltra", model="CS-2000",
+            serialNumber="ELT-CS2K-9912", status=InstrumentStatus.ONLINE,
+            location="Carbon Lab", lastImportAt=_iso(0, 2),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=31,
+            supportedParameters=["Carbon", "Sulphur"],
+        ),
+        Instrument(
+            id=_id(), code="MA-01", name="Moisture Analyzer 01",
+            type=InstrumentType.MOISTURE, vendor="Mettler Toledo", model="HE73",
+            serialNumber="MT-HE73-2204", status=InstrumentStatus.ONLINE,
+            location="Carbon Lab", lastImportAt=_iso(0, 1),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=27,
+            supportedParameters=["Moisture"],
+        ),
+        Instrument(
+            id=_id(), code="PYC-01", name="Pycnometer 01",
+            type=InstrumentType.OTHER, vendor="Micromeritics", model="AccuPyc II",
+            serialNumber="MM-APYC2-118", status=InstrumentStatus.ONLINE,
+            location="Carbon Lab", lastImportAt=_iso(0, 3),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=22,
+            supportedParameters=["Density"],
+        ),
+        Instrument(
+            id=_id(), code="APA-01", name="Air Permeability Analyzer 01",
+            type=InstrumentType.OTHER, vendor="R&B Instruments", model="AP-300",
+            serialNumber="RB-AP300-074", status=InstrumentStatus.ONLINE,
+            location="Carbon Lab", lastImportAt=_iso(0, 4),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=19,
+            supportedParameters=["Air Permeability"],
+        ),
+        Instrument(
+            id=_id(), code="ERA-01", name="Electrical Resistance Analyzer 01",
+            type=InstrumentType.OTHER, vendor="Ametek", model="EL-300",
+            serialNumber="AM-EL300-512", status=InstrumentStatus.ONLINE,
+            location="Carbon Lab", lastImportAt=_iso(0, 5),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=17,
+            supportedParameters=["Electrical Resistance"],
+        ),
+        Instrument(
+            id=_id(), code="SPT-01", name="Softening Point Tester 01",
+            type=InstrumentType.OTHER, vendor="Anton Paar", model="SP-5",
+            serialNumber="AP-SP5-9981", status=InstrumentStatus.ONLINE,
+            location="Pitch Lab", lastImportAt=_iso(1, 3),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=12,
+            supportedParameters=["Softening Point"],
+        ),
+        Instrument(
+            id=_id(), code="VIS-01", name="Viscometer 01",
+            type=InstrumentType.OTHER, vendor="Brookfield", model="DV-3T",
+            serialNumber="BF-DV3T-441", status=InstrumentStatus.ONLINE,
+            location="Pitch Lab", lastImportAt=_iso(1, 4),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=10,
+            supportedParameters=["Viscosity"],
+        ),
+        Instrument(
+            id=_id(), code="XRD-01", name="Panalytical XRD-01",
+            type=InstrumentType.OTHER, vendor="Malvern Panalytical", model="Aeris",
+            serialNumber="MP-AER-2210", status=InstrumentStatus.ONLINE,
+            location="Bath Lab", lastImportAt=_iso(0, 6),
+            lastHeartbeatAt=_iso(0, 0), importsThisWeek=15,
+            supportedParameters=["Crystallinity", "Cryolite Ratio", "Alumina Phase"],
         ),
     ]
     for inst in instruments:
@@ -357,3 +489,253 @@ def seed() -> None:
     notif.emit("Sample Created", f"Sample {hero_sample.sampleId} collected for {hero_receipt.lotNumber}.", entity_type="sample", entity_id=hero_sample.id)
     notif.emit("Results Imported", f"XRF results imported from Panalytical XRF-01.", entity_type="result", entity_id=hero_tests[0].id)
     notif.emit("Validation Completed", f"All parameters compliant for {hero_receipt.lotNumber}.", entity_type="receipt", entity_id=hero_receipt.id)
+
+    # ====================================================================
+    # Phase 2 — Process Material Qualification seed data
+    # ====================================================================
+    _seed_qualifications(c_coke, ctpi, cryolite, bath_mat, alf3, pet_coke, abc, gat)
+
+
+# --------------------------------------------------------------------------
+# Phase 2 helper: seeds the hero qualification PMQ-2026-001245 and sibling
+# batches so the queue, workbench, and Process Readiness panel are populated.
+# --------------------------------------------------------------------------
+def _seed_qualifications(c_coke, ctpi, cryolite, bath_mat, alf3, pet_coke, abc, gat) -> None:
+    from app.frameworks import audit, notifications as notif
+
+    # Hero qualification — Calcined Coke for Carbon Plant, all tests done,
+    # process readiness ~91 (matches the PRD demo).
+    hero = Qualification(
+        id=_id(),
+        qualificationNumber="PMQ-2026-001245",
+        materialId=c_coke.id,
+        batchNumber="CC-2026-015",
+        supplierId=abc.id,
+        sourceLotNumber="LOT-2026-0042",
+        consumptionArea=ConsumptionArea.CARBON_PLANT,
+        quantity=24.5,
+        uom="MT",
+        status=QualificationStatus.PENDING_REVIEW,
+        riskLevel=RiskLevel.LOW,
+        assignedTo="Ravi Iyer",
+        requestedAt=_iso(0, 9),
+        requestedBy="Aditya Rao",
+        notes="Carbon Plant qualification for batch CC-2026-015. Source receipt LOT-2026-0042.",
+    )
+    db.qualifications[hero.id] = hero
+
+    wf = workflow_engine.create_workflow("process-material-qualification", hero.id)
+    workflow_engine.complete_through(wf, "validation", "Arjun Patel")
+    db.workflows[hero.id] = wf
+
+    hero_sample = QualificationSample(
+        id=_id(),
+        sampleId="PMQS-001245-A",
+        qualificationId=hero.id,
+        collectionDate=_iso(0, 8),
+        collectedBy="Sneha Iyer",
+        status=SampleStatus.COLLECTED,
+        notes="Composite sample from 4 bags.",
+    )
+    db.qualification_samples[hero_sample.id] = hero_sample
+
+    # Tests + results matching PRD section 19 demo numbers.
+    test_plan = [
+        ("SULPHUR", "Sulphur", ["Sulphur"], "CSA-01", [("Sulphur", 1.25)]),
+        ("MOISTURE", "Moisture", ["Moisture"], "MA-01", [("Moisture", 0.35)]),
+        ("DENSITY", "Density", ["Density"], "PYC-01", [("Density", 2.08)]),
+        ("AIR_PERM", "Air Permeability", ["Air Permeability"], "APA-01", [("Air Permeability", 14.5)]),
+        ("ELEC_RES", "Electrical Resistance", ["Electrical Resistance"], "ERA-01", [("Electrical Resistance", 52.0)]),
+    ]
+    coke_specs = {s.parameter: s for s in c_coke.specifications}
+
+    for code, name, params, inst_code, vals in test_plan:
+        t = QualificationTest(
+            id=_id(),
+            sampleId=hero_sample.id,
+            code=code, name=name, parameters=params,
+            instrumentCode=inst_code,
+            status=TestStatus.COMPLETED,
+            assignedAt=_iso(0, 7),
+        )
+        db.qualification_tests[t.id] = t
+
+        result_values: List = []
+        for p, v in vals:
+            spec = coke_specs.get(p)
+            result_values.append(ResultValue(
+                parameter=p, value=v,
+                unit=spec.unit if spec else "%",
+                specMin=spec.minValue if spec else None,
+                specMax=spec.maxValue if spec else None,
+                status=ResultStatus.PASS,
+            ))
+        rid = _id()
+        db.qualification_results[rid] = QualificationResult(
+            id=rid, testId=t.id, sampleId=hero_sample.id,
+            source=ResultSource.INSTRUMENT,
+            values=result_values,
+            enteredBy=f"System ({inst_code})",
+            enteredAt=_iso(0, 5),
+            instrumentCode=inst_code,
+            overallStatus=ResultStatus.PASS,
+        )
+
+    # --- Sibling qualifications so historical comparison / queue feel real ---
+    sibling_qualifications = [
+        Qualification(id=_id(), qualificationNumber="PMQ-2026-001244",
+                      materialId=c_coke.id, batchNumber="CC-2026-014",
+                      supplierId=abc.id,
+                      consumptionArea=ConsumptionArea.CARBON_PLANT,
+                      quantity=22.0, uom="MT",
+                      status=QualificationStatus.RELEASED,
+                      riskLevel=RiskLevel.LOW,
+                      assignedTo="Priya Menon",
+                      requestedAt=_iso(2, 4), requestedBy="Aditya Rao",
+                      notes="Released — chemistry trend stable."),
+        Qualification(id=_id(), qualificationNumber="PMQ-2026-001243",
+                      materialId=c_coke.id, batchNumber="CC-2026-013",
+                      supplierId=abc.id,
+                      consumptionArea=ConsumptionArea.CARBON_PLANT,
+                      quantity=24.0, uom="MT",
+                      status=QualificationStatus.RELEASED,
+                      riskLevel=RiskLevel.LOW,
+                      assignedTo="Priya Menon",
+                      requestedAt=_iso(5, 2), requestedBy="Aditya Rao"),
+        Qualification(id=_id(), qualificationNumber="PMQ-2026-001242",
+                      materialId=c_coke.id, batchNumber="CC-2026-012",
+                      supplierId=abc.id,
+                      consumptionArea=ConsumptionArea.CARBON_PLANT,
+                      quantity=23.0, uom="MT",
+                      status=QualificationStatus.ON_HOLD,
+                      riskLevel=RiskLevel.MEDIUM,
+                      assignedTo="Ravi Iyer",
+                      requestedAt=_iso(7, 0), requestedBy="Aditya Rao",
+                      notes="On hold — sulphur near upper limit, recollect ordered."),
+        Qualification(id=_id(), qualificationNumber="PMQ-2026-001241",
+                      materialId=ctpi.id, batchNumber="CTP-2026-008",
+                      supplierId=gat.id,
+                      consumptionArea=ConsumptionArea.CARBON_PLANT,
+                      quantity=18.0, uom="MT",
+                      status=QualificationStatus.PENDING_TESTING,
+                      riskLevel=RiskLevel.LOW,
+                      assignedTo="Arjun Patel",
+                      requestedAt=_iso(0, 16), requestedBy="Aditya Rao"),
+        Qualification(id=_id(), qualificationNumber="PMQ-2026-001240",
+                      materialId=cryolite.id, batchNumber="CRY-2026-022",
+                      supplierId=gat.id,
+                      consumptionArea=ConsumptionArea.POTLINE,
+                      quantity=15.0, uom="MT",
+                      status=QualificationStatus.PENDING_REVIEW,
+                      riskLevel=RiskLevel.LOW,
+                      assignedTo="Ravi Iyer",
+                      requestedAt=_iso(1, 6), requestedBy="Aditya Rao"),
+        Qualification(id=_id(), qualificationNumber="PMQ-2026-001239",
+                      materialId=bath_mat.id, batchNumber="BTH-2026-019",
+                      supplierId=gat.id,
+                      consumptionArea=ConsumptionArea.POTLINE,
+                      quantity=12.5, uom="MT",
+                      status=QualificationStatus.RELEASED,
+                      riskLevel=RiskLevel.LOW,
+                      assignedTo="Priya Menon",
+                      requestedAt=_iso(3, 8), requestedBy="Aditya Rao"),
+        Qualification(id=_id(), qualificationNumber="PMQ-2026-001238",
+                      materialId=alf3.id, batchNumber="ALF-2026-011",
+                      supplierId=gat.id,
+                      consumptionArea=ConsumptionArea.POTLINE,
+                      quantity=10.0, uom="MT",
+                      status=QualificationStatus.PENDING_SAMPLING,
+                      riskLevel=RiskLevel.LOW,
+                      assignedTo="Sneha Iyer",
+                      requestedAt=_iso(0, 4), requestedBy="Aditya Rao"),
+        Qualification(id=_id(), qualificationNumber="PMQ-2026-001237",
+                      materialId=pet_coke.id, batchNumber="PC-2026-031",
+                      supplierId=abc.id,
+                      consumptionArea=ConsumptionArea.CARBON_PLANT,
+                      quantity=20.0, uom="MT",
+                      status=QualificationStatus.REJECTED,
+                      riskLevel=RiskLevel.HIGH,
+                      assignedTo="Priya Menon",
+                      requestedAt=_iso(8, 0), requestedBy="Aditya Rao",
+                      notes="Sulphur 3.6% — exceeds Carbon Plant tolerance."),
+    ]
+    for q in sibling_qualifications:
+        db.qualifications[q.id] = q
+        wfx = workflow_engine.create_workflow("process-material-qualification", q.id)
+        stage_map = {
+            QualificationStatus.PENDING_SAMPLING: "request",
+            QualificationStatus.PENDING_TESTING: "sample",
+            QualificationStatus.PENDING_REVIEW: "validation",
+            QualificationStatus.RELEASED: "release",
+            QualificationStatus.ON_HOLD: "review",
+            QualificationStatus.REJECTED: "review",
+            QualificationStatus.CANCELLED: "review",
+        }
+        workflow_engine.complete_through(wfx, stage_map[q.status], q.assignedTo or "Priya Menon")
+        db.workflows[q.id] = wfx
+
+    # Backfill released/held siblings with sample + results so the readiness
+    # engine can compute trends and historical comparisons.
+    for sibling, vals in [
+        (sibling_qualifications[0], [("Sulphur", 1.18), ("Moisture", 0.32), ("Density", 2.07)]),
+        (sibling_qualifications[1], [("Sulphur", 1.15), ("Moisture", 0.30), ("Density", 2.06)]),
+        (sibling_qualifications[2], [("Sulphur", 2.7), ("Moisture", 0.38), ("Density", 2.04)]),
+    ]:
+        s = QualificationSample(
+            id=_id(),
+            sampleId=f"PMQS-{sibling.qualificationNumber.split('-')[-1]}-A",
+            qualificationId=sibling.id,
+            collectionDate=_iso(2, 1),
+            collectedBy="Sneha Iyer",
+            status=SampleStatus.COLLECTED,
+        )
+        db.qualification_samples[s.id] = s
+        for p, v in vals:
+            code = {"Sulphur": "SULPHUR", "Moisture": "MOISTURE", "Density": "DENSITY"}[p]
+            t = QualificationTest(
+                id=_id(), sampleId=s.id,
+                code=code, name=p, parameters=[p],
+                instrumentCode={"SULPHUR": "CSA-01", "MOISTURE": "MA-01", "DENSITY": "PYC-01"}[code],
+                status=TestStatus.COMPLETED, assignedAt=_iso(2, 1),
+            )
+            db.qualification_tests[t.id] = t
+            spec = coke_specs.get(p)
+            status_val = ResultStatus.WARNING if (p == "Sulphur" and v > 2.5) else ResultStatus.PASS
+            rid = _id()
+            db.qualification_results[rid] = QualificationResult(
+                id=rid, testId=t.id, sampleId=s.id,
+                source=ResultSource.INSTRUMENT,
+                values=[ResultValue(
+                    parameter=p, value=v,
+                    unit=spec.unit if spec else "%",
+                    specMin=spec.minValue if spec else None,
+                    specMax=spec.maxValue if spec else None,
+                    status=status_val,
+                )],
+                enteredBy=f"System ({t.instrumentCode})",
+                enteredAt=_iso(2, 1),
+                instrumentCode=t.instrumentCode,
+                overallStatus=status_val,
+            )
+
+    # --- Audit + notifications for the hero so the feed reads naturally ---
+    audit.record("Aditya Rao", "Process Engineer", "create", "qualification",
+                 hero.id, None, hero.model_dump())
+    audit.record("Sneha Iyer", "Sampler", "create", "qualification-sample",
+                 hero_sample.id, None, hero_sample.model_dump())
+    audit.record("System", "Lab Analyst", "import", "qualification-result",
+                 list(db.qualification_results.values())[0].id, None,
+                 {"source": "Instrument", "instrument": "CSA-01"})
+
+    notif.emit("Qualification created successfully",
+               f"{hero.qualificationNumber} created for {hero.batchNumber} → Carbon Plant.",
+               entity_type="qualification", entity_id=hero.id)
+    notif.emit("Sample generated successfully",
+               f"Sample {hero_sample.sampleId} drawn for {hero.qualificationNumber}.",
+               entity_type="qualification-sample", entity_id=hero_sample.id)
+    notif.emit("Results imported successfully",
+               "Sulphur, Moisture, Density, Air Permeability, Electrical Resistance captured.",
+               entity_type="qualification", entity_id=hero.id)
+    notif.emit("Process readiness recalculated",
+               f"{hero.qualificationNumber} ready for QA review — 91/100.",
+               entity_type="qualification", entity_id=hero.id)

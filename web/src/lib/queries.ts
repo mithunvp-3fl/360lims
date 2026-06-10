@@ -8,9 +8,18 @@ import type {
   ApprovalDecision,
   AuditLog,
   AuthUser,
+  ConsumptionArea,
   DashboardSummary,
   Instrument,
   Material,
+  ProcessInsight,
+  Qualification,
+  QualificationApproval,
+  QualificationDecision,
+  QualificationResult,
+  QualificationSample,
+  QualificationStatus,
+  QualificationTest,
   QualityInsight,
   Receipt,
   Result,
@@ -305,5 +314,215 @@ export function useMarkAllRead() {
   return useMutation({
     mutationFn: () => api.post<{ updated: number }>("/notifications/read-all"),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.notifications }),
+  });
+}
+
+// =====================================================================
+// Phase 2 — Process Material Qualification
+// =====================================================================
+const qqk = {
+  list: (params?: Record<string, string | undefined>) => ["qualifications", params] as const,
+  detail: (n: string) => ["qualification", n] as const,
+  workflow: (n: string) => ["qualification-workflow", n] as const,
+  samples: (n: string) => ["qualification-samples", n] as const,
+  tests: (n: string) => ["qualification-tests", n] as const,
+  results: (n: string) => ["qualification-results", n] as const,
+  approvals: (n: string) => ["qualification-approvals", n] as const,
+  insights: (n: string) => ["qualification-insights", n] as const,
+  audit: (n: string) => ["qualification-audit", n] as const,
+};
+
+function invalidateQualification(qc: ReturnType<typeof useQueryClient>, n: string) {
+  qc.invalidateQueries({ queryKey: qqk.detail(n) });
+  qc.invalidateQueries({ queryKey: qqk.workflow(n) });
+  qc.invalidateQueries({ queryKey: qqk.samples(n) });
+  qc.invalidateQueries({ queryKey: qqk.tests(n) });
+  qc.invalidateQueries({ queryKey: qqk.results(n) });
+  qc.invalidateQueries({ queryKey: qqk.approvals(n) });
+  qc.invalidateQueries({ queryKey: qqk.insights(n) });
+  qc.invalidateQueries({ queryKey: qqk.audit(n) });
+  qc.invalidateQueries({ queryKey: ["qualifications"] });
+  qc.invalidateQueries({ queryKey: qk.notifications });
+}
+
+export function useQualifications(params?: {
+  status?: QualificationStatus;
+  material_id?: string;
+  consumption_area?: ConsumptionArea;
+  search?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.status) search.set("status", params.status);
+  if (params?.material_id) search.set("material_id", params.material_id);
+  if (params?.consumption_area) search.set("consumption_area", params.consumption_area);
+  if (params?.search) search.set("search", params.search);
+  const qs = search.toString();
+  return useQuery({
+    queryKey: qqk.list(params as Record<string, string | undefined>),
+    queryFn: () => api.get<Qualification[]>(`/qualifications${qs ? `?${qs}` : ""}`),
+  });
+}
+
+export function useQualification(n: string) {
+  return useQuery({
+    queryKey: qqk.detail(n),
+    queryFn: () => api.get<Qualification>(`/qualifications/${n}`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useCreateQualification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      materialId: string;
+      batchNumber: string;
+      consumptionArea: ConsumptionArea;
+      quantity: number;
+      uom?: string;
+      supplierId?: string;
+      sourceLotNumber?: string;
+      notes?: string;
+    }) => api.post<Qualification>("/qualifications", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qualifications"] }),
+  });
+}
+
+export function useCancelQualification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (n: string) => api.post<Qualification>(`/qualifications/${n}/cancel`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qualifications"] }),
+  });
+}
+
+export function useCloneQualification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (n: string) => api.post<Qualification>(`/qualifications/${n}/clone`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qualifications"] }),
+  });
+}
+
+export function useQualificationWorkflow(n: string) {
+  return useQuery({
+    queryKey: qqk.workflow(n),
+    queryFn: () => api.get<Workflow>(`/qualifications/${n}/workflow`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useQualificationSamples(n: string) {
+  return useQuery({
+    queryKey: qqk.samples(n),
+    queryFn: () => api.get<QualificationSample[]>(`/qualifications/${n}/samples`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useCreateQualificationSample(n: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<QualificationSample>(`/qualifications/${n}/samples`, {}),
+    onSuccess: () => invalidateQualification(qc, n),
+  });
+}
+
+export function useRecollectQualificationSample(n: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<QualificationSample>(`/qualifications/${n}/samples/recollect`, {}),
+    onSuccess: () => invalidateQualification(qc, n),
+  });
+}
+
+export function useQualificationTests(n: string) {
+  return useQuery({
+    queryKey: qqk.tests(n),
+    queryFn: () => api.get<QualificationTest[]>(`/qualifications/${n}/tests`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useQualificationResults(n: string) {
+  return useQuery({
+    queryKey: qqk.results(n),
+    queryFn: () => api.get<QualificationResult[]>(`/qualifications/${n}/results`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useQualificationImportFromInstrument(n: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { testId: string; instrumentCode: string }) =>
+      api.post<QualificationResult>("/qualification-results/instrument-import", body),
+    onSuccess: () => {
+      invalidateQualification(qc, n);
+      qc.invalidateQueries({ queryKey: ["instruments"] });
+    },
+  });
+}
+
+export function useQualificationManualEntry(n: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      testId: string;
+      reason: string;
+      values: { parameter: string; value: number; unit: string }[];
+    }) => api.post<QualificationResult>("/qualification-results/manual", body),
+    onSuccess: () => invalidateQualification(qc, n),
+  });
+}
+
+export function useQualificationFileUpload(n: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { testId: string; fileName: string }) =>
+      api.post<QualificationResult>("/qualification-results/file-upload", body),
+    onSuccess: () => invalidateQualification(qc, n),
+  });
+}
+
+export function useQualificationRetest(n: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (resultId: string) =>
+      api.post<QualificationTest>(`/qualification-results/${resultId}/retest`),
+    onSuccess: () => invalidateQualification(qc, n),
+  });
+}
+
+export function useQualificationApprovals(n: string) {
+  return useQuery({
+    queryKey: qqk.approvals(n),
+    queryFn: () => api.get<QualificationApproval[]>(`/qualifications/${n}/approvals`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useDecideQualification(n: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { decision: QualificationDecision; reason?: string }) =>
+      api.post<QualificationApproval>(`/qualifications/${n}/approvals`, body),
+    onSuccess: () => invalidateQualification(qc, n),
+  });
+}
+
+export function useProcessInsights(n: string) {
+  return useQuery({
+    queryKey: qqk.insights(n),
+    queryFn: () => api.get<ProcessInsight>(`/qualifications/${n}/insights`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useQualificationAudit(n: string) {
+  return useQuery({
+    queryKey: qqk.audit(n),
+    queryFn: () => api.get<AuditLog[]>(`/qualifications/${n}/audit`),
+    enabled: Boolean(n),
   });
 }

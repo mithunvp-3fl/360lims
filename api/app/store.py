@@ -16,6 +16,13 @@ from app.schemas.result import Result
 from app.schemas.approval import Approval
 from app.schemas.workflow import Workflow
 from app.schemas.instrument import Instrument
+from app.schemas.qualification import (
+    Qualification,
+    QualificationSample,
+    QualificationTest,
+    QualificationResult,
+    QualificationApproval,
+)
 
 
 class Store:
@@ -27,8 +34,15 @@ class Store:
         self.tests: Dict[str, Test] = {}
         self.results: Dict[str, Result] = {}
         self.approvals: Dict[str, Approval] = {}
-        self.workflows: Dict[str, Workflow] = {}  # keyed by entityId (receiptId)
+        self.workflows: Dict[str, Workflow] = {}  # keyed by entityId (receiptId or qualificationId)
         self.instruments: Dict[str, Instrument] = {}
+
+        # Phase 2 — Process Material Qualification
+        self.qualifications: Dict[str, Qualification] = {}
+        self.qualification_samples: Dict[str, QualificationSample] = {}
+        self.qualification_tests: Dict[str, QualificationTest] = {}
+        self.qualification_results: Dict[str, QualificationResult] = {}
+        self.qualification_approvals: Dict[str, QualificationApproval] = {}
 
     def supplier_by_id(self, sid: str) -> Supplier | None:
         return self.suppliers.get(sid)
@@ -62,6 +76,30 @@ class Store:
 
     def approvals_for_receipt(self, receipt_id: str) -> List[Approval]:
         return [a for a in self.approvals.values() if a.receiptId == receipt_id]
+
+    # --- Qualification helpers ---
+    def qualification_by_number(self, number: str) -> Qualification | None:
+        for q in self.qualifications.values():
+            if q.qualificationNumber == number:
+                return q
+        return None
+
+    def qsamples_for_qualification(self, qualification_id: str) -> List[QualificationSample]:
+        return [s for s in self.qualification_samples.values() if s.qualificationId == qualification_id]
+
+    def qtests_for_sample(self, sample_id: str) -> List[QualificationTest]:
+        return [t for t in self.qualification_tests.values() if t.sampleId == sample_id]
+
+    def qtests_for_qualification(self, qualification_id: str) -> List[QualificationTest]:
+        sids = {s.id for s in self.qsamples_for_qualification(qualification_id)}
+        return [t for t in self.qualification_tests.values() if t.sampleId in sids]
+
+    def qresults_for_qualification(self, qualification_id: str) -> List[QualificationResult]:
+        tids = {t.id for t in self.qtests_for_qualification(qualification_id)}
+        return [r for r in self.qualification_results.values() if r.testId in tids]
+
+    def qapprovals_for_qualification(self, qualification_id: str) -> List[QualificationApproval]:
+        return [a for a in self.qualification_approvals.values() if a.qualificationId == qualification_id]
 
 
 db = Store()

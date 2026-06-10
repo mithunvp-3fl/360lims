@@ -27,19 +27,32 @@ export type Permission =
   | "approval:recommend"
   | "approval:approve"
   | "approval:reject"
-  | "approval:override";
+  | "approval:override"
+  // Phase 2 — Process Material Qualification
+  | "qualification:create"
+  | "qualification:edit"
+  | "qualification:release"
+  | "qualification:hold"
+  | "qualification:reject";
 
 const MATRIX: Record<RoleKey, Permission[]> = {
   "stores-executive": ["receipt:create", "receipt:edit"],
   sampler: ["sample:create", "sample:recollect"],
-  "lab-analyst": ["result:enter", "result:import", "result:upload"],
-  "qa-engineer": ["approval:hold", "approval:recommend"],
+  "lab-analyst": [
+    "result:enter", "result:import", "result:upload",
+  ],
+  "qa-engineer": [
+    "approval:hold", "approval:recommend",
+    "qualification:create", "qualification:edit", "qualification:hold",
+  ],
   "qa-manager": [
     "receipt:create", "receipt:edit",
     "sample:create", "sample:recollect",
     "result:enter", "result:import", "result:upload",
     "approval:hold", "approval:recommend",
     "approval:approve", "approval:reject", "approval:override",
+    "qualification:create", "qualification:edit",
+    "qualification:release", "qualification:hold", "qualification:reject",
   ],
   viewer: [],
 };
