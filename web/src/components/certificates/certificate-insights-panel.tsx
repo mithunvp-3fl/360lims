@@ -1,18 +1,25 @@
 "use client";
-import { ChevronRight, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { ChevronRight, HeartPulse, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { SectionCard } from "@/components/kit/section-card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useCertificateInsights } from "@/lib/queries";
 import { certificateRecommendationToAccent } from "@/lib/format";
-import type { RiskLevel } from "@/lib/types";
+import type { CertificateHealth, RiskLevel } from "@/lib/types";
 
 const RISK_TONE: Record<RiskLevel, "success" | "warning" | "danger"> = {
   Low: "success",
   Medium: "warning",
   High: "danger",
 };
+
+function toneForScore(n: number): "success" | "accent" | "warning" | "danger" {
+  if (n >= 90) return "success";
+  if (n >= 75) return "accent";
+  if (n >= 60) return "warning";
+  return "danger";
+}
 
 export function CertificateInsightsPanel({
   certificateNumber,
@@ -24,7 +31,7 @@ export function CertificateInsightsPanel({
   return (
     <SectionCard
       title="Quality insights"
-      description="Release Confidence based on customer fit, history, and current quality state."
+      description="Release Confidence + Certificate Health based on customer fit, history, and current quality state."
       icon={<Sparkles className="h-4 w-4 text-accent" />}
       glass
       className="bg-gradient-to-br from-accent-soft/40 via-surface to-surface"
@@ -33,55 +40,51 @@ export function CertificateInsightsPanel({
         <div className="text-xs text-ink-muted">Calculating release confidence…</div>
       ) : (
         <div className="space-y-4 relative z-10">
-          {/* Release Confidence hero */}
-          <div className="rounded-lg border border-line bg-surface p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Release Confidence
-                </div>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-4xl font-semibold tracking-tight tabular-nums">
-                    {insights.releaseConfidence}
-                  </span>
-                  <span className="text-sm text-ink-muted">/ 100</span>
-                </div>
-                <Progress
-                  value={insights.releaseConfidence}
-                  className="mt-2"
-                  tone={
-                    insights.releaseConfidence >= 90
-                      ? "success"
-                      : insights.releaseConfidence >= 75
-                        ? "accent"
-                        : insights.releaseConfidence >= 60
-                          ? "warning"
-                          : "danger"
-                  }
-                />
-              </div>
-              <div className="hidden sm:flex h-10 w-10 rounded-md bg-accent-soft text-accent items-center justify-center">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-            </div>
-            <div className="h-10 mt-3">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={insights.releaseConfidenceTrend.map((v, i) => ({ x: i, v }))}>
-                  <Line
-                    type="monotone"
-                    dataKey="v"
-                    stroke="rgb(124 58 237)"
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={false}
+          {/* Hero: Release Confidence + Certificate Health side-by-side */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-lg border border-line bg-surface p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+                    Release Confidence
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    <span className="text-3xl font-semibold tracking-tight tabular-nums">
+                      {insights.releaseConfidence}
+                    </span>
+                    <span className="text-xs text-ink-muted">/ 100</span>
+                  </div>
+                  <Progress
+                    value={insights.releaseConfidence}
+                    className="mt-2"
+                    tone={toneForScore(insights.releaseConfidence)}
                   />
-                </LineChart>
-              </ResponsiveContainer>
+                </div>
+                <div className="h-9 w-9 rounded-md bg-accent-soft text-accent grid place-items-center shrink-0">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="h-8 mt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={insights.releaseConfidenceTrend.map((v, i) => ({ x: i, v }))}>
+                    <Line
+                      type="monotone"
+                      dataKey="v"
+                      stroke="rgb(124 58 237)"
+                      strokeWidth={2}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-ink-muted">
+                <TrendingUp className="h-3 w-3 text-accent" />
+                Trend across last 12 certificates
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-ink-muted">
-              <TrendingUp className="h-3 w-3 text-accent" />
-              Confidence trend across last 12 certificates
-            </div>
+
+            <CertificateHealthTile health={insights.certificateHealth ?? null} />
           </div>
 
           {/* Recommendation */}
@@ -166,5 +169,58 @@ export function CertificateInsightsPanel({
         </div>
       )}
     </SectionCard>
+  );
+}
+
+function CertificateHealthTile({ health }: { health: CertificateHealth | null }) {
+  if (!health) {
+    return (
+      <div className="rounded-lg border border-line bg-surface p-4">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+          Certificate Health
+        </div>
+        <div className="text-xs text-ink-muted mt-2">No health data.</div>
+      </div>
+    );
+  }
+  const tone = toneForScore(health.score);
+  return (
+    <div className="rounded-lg border border-line bg-surface p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+            Certificate Health
+          </div>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-3xl font-semibold tracking-tight tabular-nums">
+              {health.score}
+            </span>
+            <span className="text-xs text-ink-muted">/ 100</span>
+          </div>
+          <Progress value={health.score} className="mt-2" tone={tone} />
+        </div>
+        <div className="h-9 w-9 rounded-md bg-success-soft text-success grid place-items-center shrink-0">
+          <HeartPulse className="h-4 w-4" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 mt-3 text-[10px]">
+        <HealthChip label="Data" value={health.dataCompleteness} />
+        <HealthChip label="Coverage" value={health.specCoverage} />
+        <HealthChip label="Signature" value={health.signaturePresence} />
+        <HealthChip label="Freshness" value={health.freshness} />
+      </div>
+      {health.notes.length > 0 && (
+        <div className="text-[10px] text-ink-muted mt-2 line-clamp-2">{health.notes[0]}</div>
+      )}
+    </div>
+  );
+}
+
+function HealthChip({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between rounded border border-line bg-inset/50 px-2 py-1">
+      <span className="text-ink-muted">{label}</span>
+      <span className="font-semibold tabular-nums">{value}/25</span>
+    </div>
   );
 }

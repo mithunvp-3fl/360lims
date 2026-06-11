@@ -9,8 +9,11 @@ import type {
   AuditLog,
   AuthUser,
   Certificate,
+  CertificateEvent,
   CertificateInsight,
   CertificateStatus,
+  DispatchApprovalRecord,
+  VerifyPayload,
   ConsumptionArea,
   DashboardSummary,
   DispatchDecision,
@@ -58,6 +61,17 @@ import type {
   TraceabilityDashboard,
   TraceabilitySearchHit,
   Workflow,
+  MaterialLineage,
+  WorkTask,
+  WorkSummary,
+  WorkflowApprovalDecision,
+  ApprovalsResponse,
+  ChainQualitySummary,
+  ChainRiskPanel,
+  ImpactAnalysis,
+  QualityEventsResponse,
+  QualityScorecard,
+  RelatedRecords,
 } from "./types";
 
 const qk = {
@@ -803,6 +817,320 @@ export function useTraceabilityDashboard() {
   });
 }
 
+export function useMaterialLineage(
+  nodeType: GenealogyNodeType | undefined,
+  nodeKey: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["traceability", "lineage", nodeType, nodeKey],
+    queryFn: () =>
+      api.get<MaterialLineage>(
+        `/traceability/${nodeType}/${encodeURIComponent(nodeKey!)}/lineage`,
+      ),
+    enabled: Boolean(nodeType && nodeKey),
+  });
+}
+
+// --- Traceability Center V2 ---
+export function useScopedTraceabilitySearch(
+  query: string,
+  scope: GenealogyNodeType[] | undefined,
+) {
+  const params = new URLSearchParams();
+  params.set("q", query);
+  if (scope && scope.length > 0) params.set("scope", scope.join(","));
+  return useQuery({
+    queryKey: ["traceability", "search-scoped", query, scope],
+    queryFn: () =>
+      api.get<TraceabilitySearchHit[]>(`/traceability/search?${params.toString()}`),
+    enabled: query.trim().length > 0,
+  });
+}
+
+export function useChainEvents(
+  nodeType: GenealogyNodeType | undefined,
+  nodeKey: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["traceability", "events", nodeType, nodeKey],
+    queryFn: () =>
+      api.get<QualityEventsResponse>(
+        `/traceability/${nodeType}/${encodeURIComponent(nodeKey!)}/events`,
+      ),
+    enabled: Boolean(nodeType && nodeKey),
+  });
+}
+
+export function useChainApprovals(
+  nodeType: GenealogyNodeType | undefined,
+  nodeKey: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["traceability", "approvals", nodeType, nodeKey],
+    queryFn: () =>
+      api.get<ApprovalsResponse>(
+        `/traceability/${nodeType}/${encodeURIComponent(nodeKey!)}/approvals`,
+      ),
+    enabled: Boolean(nodeType && nodeKey),
+  });
+}
+
+export function useChainSummary(
+  nodeType: GenealogyNodeType | undefined,
+  nodeKey: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["traceability", "summary", nodeType, nodeKey],
+    queryFn: () =>
+      api.get<ChainQualitySummary>(
+        `/traceability/${nodeType}/${encodeURIComponent(nodeKey!)}/summary`,
+      ),
+    enabled: Boolean(nodeType && nodeKey),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useChainScorecard(
+  nodeType: GenealogyNodeType | undefined,
+  nodeKey: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["traceability", "scorecard", nodeType, nodeKey],
+    queryFn: () =>
+      api.get<QualityScorecard>(
+        `/traceability/${nodeType}/${encodeURIComponent(nodeKey!)}/scorecard`,
+      ),
+    enabled: Boolean(nodeType && nodeKey),
+  });
+}
+
+export function useChainImpact(
+  nodeType: GenealogyNodeType | undefined,
+  nodeKey: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["traceability", "impact", nodeType, nodeKey],
+    queryFn: () =>
+      api.get<ImpactAnalysis>(
+        `/traceability/${nodeType}/${encodeURIComponent(nodeKey!)}/impact`,
+      ),
+    enabled: Boolean(nodeType && nodeKey),
+  });
+}
+
+export function useChainRisk(
+  nodeType: GenealogyNodeType | undefined,
+  nodeKey: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["traceability", "risk", nodeType, nodeKey],
+    queryFn: () =>
+      api.get<ChainRiskPanel>(
+        `/traceability/${nodeType}/${encodeURIComponent(nodeKey!)}/risk`,
+      ),
+    enabled: Boolean(nodeType && nodeKey),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useChainRelated(
+  nodeType: GenealogyNodeType | undefined,
+  nodeKey: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["traceability", "related", nodeType, nodeKey],
+    queryFn: () =>
+      api.get<RelatedRecords>(
+        `/traceability/${nodeType}/${encodeURIComponent(nodeKey!)}/related`,
+      ),
+    enabled: Boolean(nodeType && nodeKey),
+  });
+}
+
+// =====================================================================
+// Platform — My Workspace (tasks, approvals, escalations)
+// =====================================================================
+const wqk = {
+  summary: (role?: string) => ["work", "summary", role ?? "all"] as const,
+  my: (role: string) => ["work", "my", role] as const,
+  team: (role: string) => ["work", "team", role] as const,
+  approvals: (role?: string) => ["work", "approvals", role ?? "all"] as const,
+  escalations: (role?: string) => ["work", "escalations", role ?? "all"] as const,
+  completed: (role?: string) => ["work", "completed", role ?? "all"] as const,
+  blocked: (role?: string) => ["work", "blocked", role ?? "all"] as const,
+  upcoming: (role?: string) => ["work", "upcoming", role ?? "all"] as const,
+  byEntity: (entityType: string, entityId: string) =>
+    ["work", "by-entity", entityType, entityId] as const,
+  byRecord: (recordKey: string, moduleKey?: string) =>
+    ["work", "by-record", recordKey, moduleKey ?? "any"] as const,
+};
+
+function qs(role?: string): string {
+  return role ? `?role=${encodeURIComponent(role)}` : "";
+}
+
+export function useWorkSummary(role?: string) {
+  return useQuery({
+    queryKey: wqk.summary(role),
+    queryFn: () => api.get<WorkSummary>(`/work/summary${qs(role)}`),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useMyWork(role: string | undefined) {
+  return useQuery({
+    queryKey: wqk.my(role ?? ""),
+    queryFn: () => api.get<WorkTask[]>(`/work/my?role=${encodeURIComponent(role!)}`),
+    enabled: Boolean(role),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useTeamWork(role: string | undefined) {
+  return useQuery({
+    queryKey: wqk.team(role ?? ""),
+    queryFn: () => api.get<WorkTask[]>(`/work/team?role=${encodeURIComponent(role!)}`),
+    enabled: Boolean(role),
+  });
+}
+
+export function usePendingApprovals(role?: string) {
+  return useQuery({
+    queryKey: wqk.approvals(role),
+    queryFn: () => api.get<WorkTask[]>(`/work/approvals${qs(role)}`),
+  });
+}
+
+export function useEscalations(role?: string) {
+  return useQuery({
+    queryKey: wqk.escalations(role),
+    queryFn: () => api.get<WorkTask[]>(`/work/escalations${qs(role)}`),
+  });
+}
+
+export function useCompletedWork(role?: string) {
+  return useQuery({
+    queryKey: wqk.completed(role),
+    queryFn: () => api.get<WorkTask[]>(`/work/completed${qs(role)}`),
+  });
+}
+
+export function useBlockedWork(role?: string) {
+  return useQuery({
+    queryKey: wqk.blocked(role),
+    queryFn: () => api.get<WorkTask[]>(`/work/blocked${qs(role)}`),
+  });
+}
+
+export function useUpcomingWork(role?: string) {
+  return useQuery({
+    queryKey: wqk.upcoming(role),
+    queryFn: () => api.get<WorkTask[]>(`/work/upcoming${qs(role)}`),
+  });
+}
+
+/**
+ * Tasks attached to a specific business entity (any module).
+ * Powers the reusable RelatedTasksPanel on every workbench.
+ */
+export function useTasksForEntity(
+  entityType: string | undefined,
+  entityId: string | undefined,
+) {
+  return useQuery({
+    queryKey: wqk.byEntity(entityType ?? "", entityId ?? ""),
+    queryFn: () =>
+      api.get<WorkTask[]>(
+        `/work/tasks?entityType=${encodeURIComponent(entityType!)}&entityId=${encodeURIComponent(entityId!)}`,
+      ),
+    enabled: Boolean(entityType && entityId),
+    refetchInterval: 30_000,
+  });
+}
+
+/**
+ * Tasks that share a record key (e.g. a batch number) — picks up child entity
+ * tasks (per-test) as well as the parent batch tasks.
+ */
+export function useTasksForRecord(
+  recordKey: string | undefined,
+  moduleKey?: string,
+) {
+  return useQuery({
+    queryKey: wqk.byRecord(recordKey ?? "", moduleKey),
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (recordKey) params.set("recordKey", recordKey);
+      if (moduleKey) params.set("moduleKey", moduleKey);
+      return api.get<WorkTask[]>(`/work/tasks?${params.toString()}`);
+    },
+    enabled: Boolean(recordKey),
+    refetchInterval: 30_000,
+  });
+}
+
+function invalidateWork(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["work"] });
+  qc.invalidateQueries({ queryKey: qk.notifications });
+}
+
+export function useStartTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: string) => api.post<WorkTask>(`/work/tasks/${taskId}/start`, {}),
+    onSuccess: (t) => {
+      toast.message("Task started", { description: t.title });
+      invalidateWork(qc);
+    },
+  });
+}
+
+export function useCompleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: string) => api.post<WorkTask>(`/work/tasks/${taskId}/complete`, {}),
+    onSuccess: (t) => {
+      toast.success("Task completed", { description: t.title });
+      invalidateWork(qc);
+    },
+  });
+}
+
+export function useEscalateTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, reason }: { taskId: string; reason?: string }) =>
+      api.post<WorkTask>(
+        `/work/tasks/${taskId}/escalate${reason ? `?reason=${encodeURIComponent(reason)}` : ""}`,
+        {},
+      ),
+    onSuccess: (t) => {
+      toast.warning("Task escalated", { description: t.title });
+      invalidateWork(qc);
+    },
+  });
+}
+
+export function useDecideApproval() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      decision,
+      reason,
+    }: {
+      taskId: string;
+      decision: WorkflowApprovalDecision;
+      reason?: string;
+    }) => api.post<WorkTask>(`/work/tasks/${taskId}/decide`, { decision, reason }),
+    onSuccess: (t) => {
+      const verb = t.decision ?? "Decision";
+      toast.success(`${verb} recorded`, { description: t.title });
+      invalidateWork(qc);
+    },
+  });
+}
+
 // =====================================================================
 // Phase 4 — Product Quality Testing
 // =====================================================================
@@ -1116,4 +1444,72 @@ export function useCertificateAudit(n: string) {
     queryFn: () => api.get<AuditLog[]>(`/certificates/${n}/audit`),
     enabled: Boolean(n),
   });
+}
+
+// --- Phase 5 enterprise hardening ---
+export function useCertificateVersions(n: string) {
+  return useQuery({
+    queryKey: ["certificate-versions", n],
+    queryFn: () => api.get<Certificate[]>(`/certificates/${n}/versions`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useReviseCertificate(n: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      revisionReason: string;
+      customerRequirements?: { parameter: string; min?: number; max?: number; target?: number }[];
+      notes?: string;
+    }) => api.post<Certificate>(`/certificates/${n}/revise`, body),
+    onSuccess: (next) => {
+      invalidateCertificate(qc, n);
+      qc.invalidateQueries({ queryKey: ["certificate-versions"] });
+      qc.invalidateQueries({ queryKey: ["certificate", next.certificateNumber] });
+    },
+  });
+}
+
+export function useCertificateDispatchApprovals(n: string) {
+  return useQuery({
+    queryKey: ["certificate-dispatch-approvals", n],
+    queryFn: () => api.get<DispatchApprovalRecord[]>(`/certificates/${n}/dispatch-approvals`),
+    enabled: Boolean(n),
+  });
+}
+
+export function useCertificateEvents(n: string) {
+  return useQuery({
+    queryKey: ["certificate-events", n],
+    queryFn: () => api.get<CertificateEvent[]>(`/certificates/${n}/events`),
+    enabled: Boolean(n),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useCertificatePreview(n: string, enabled = true) {
+  return useQuery({
+    queryKey: ["certificate-preview", n],
+    queryFn: () => api.get<unknown>(`/certificates/${n}/preview`),
+    enabled: enabled && Boolean(n),
+  });
+}
+
+export function useVerifyCertificate(n: string) {
+  return useQuery({
+    queryKey: ["verify-certificate", n],
+    queryFn: () => api.get<VerifyPayload>(`/verify/certificates/${n}`),
+    enabled: Boolean(n),
+  });
+}
+
+export function certificateAssetUrls(certificateNumber: string) {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const encoded = encodeURIComponent(certificateNumber);
+  return {
+    qr: `${base}/api/v1/certificates/${encoded}/qr.svg`,
+    barcode: `${base}/api/v1/certificates/${encoded}/barcode.svg`,
+    pdf: `${base}/api/v1/certificates/${encoded}/pdf`,
+  };
 }

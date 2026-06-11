@@ -7,6 +7,7 @@ import {
   Copy,
   Filter,
   MoreHorizontal,
+  Network,
   Search,
   Sparkles,
   Trash2,
@@ -17,6 +18,15 @@ import { SectionCard } from "@/components/kit/section-card";
 import { RiskPill } from "@/components/kit/risk-pill";
 import { ProductBatchStatusPill } from "@/components/product-quality/product-batch-status-pill";
 import { CreateProductBatchDialog } from "@/components/product-quality/create-product-batch-dialog";
+import { MaterialLineagePanel } from "@/components/genealogy/material-lineage-panel";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +82,7 @@ export default function ProductQualityQueuePage() {
   const { data: batches, isLoading } = useProductBatches(params);
   const cancel = useCancelProductBatch();
   const clone = useCloneProductBatch();
+  const [lineageBatch, setLineageBatch] = React.useState<string | null>(null);
 
   const counts = React.useMemo(() => {
     const out: Record<string, number> = { All: batches?.length ?? 0 };
@@ -189,8 +200,10 @@ export default function ProductQualityQueuePage() {
                 <tr className="border-b border-line bg-inset/60 text-[11px] uppercase tracking-wide text-ink-muted">
                   <th className="text-left font-semibold py-2.5 px-4">Product batch</th>
                   <th className="text-left font-semibold py-2.5 px-4">Product type</th>
+                  <th className="text-left font-semibold py-2.5 px-4">Metal batch</th>
                   <th className="text-right font-semibold py-2.5 px-4">Weight</th>
                   <th className="text-left font-semibold py-2.5 px-4">Status</th>
+                  <th className="text-right font-semibold py-2.5 px-4">Compliance</th>
                   <th className="text-left font-semibold py-2.5 px-4">Risk</th>
                   <th className="text-left font-semibold py-2.5 px-4">Customer</th>
                   <th className="text-left font-semibold py-2.5 px-4">Created</th>
@@ -201,7 +214,7 @@ export default function ProductQualityQueuePage() {
                 {isLoading
                   ? Array.from({ length: 6 }).map((_, i) => (
                       <tr key={i} className="border-b border-line/60">
-                        <td colSpan={8} className="p-3">
+                        <td colSpan={10} className="p-3">
                           <Skeleton className="h-6 w-full" />
                         </td>
                       </tr>
@@ -218,14 +231,21 @@ export default function ProductQualityQueuePage() {
                           >
                             {b.productBatchNumber}
                           </Link>
-                          {b.sourceMetalBatchNumber && (
-                            <div className="text-[11px] text-ink-subtle font-mono">
-                              ← {b.sourceMetalBatchNumber}
-                            </div>
-                          )}
                         </td>
                         <td className="py-3 px-4">
                           <Badge tone="accent">{b.productType}</Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          {b.sourceMetalBatchNumber ? (
+                            <Link
+                              href={`/metal-quality/${b.sourceMetalBatchNumber}`}
+                              className="font-mono text-[12px] text-ink hover:text-accent transition-colors"
+                            >
+                              {b.sourceMetalBatchNumber}
+                            </Link>
+                          ) : (
+                            <span className="text-ink-subtle text-[12px]">—</span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-right tabular-nums">
                           <div>{b.weight}</div>
@@ -233,6 +253,9 @@ export default function ProductQualityQueuePage() {
                         </td>
                         <td className="py-3 px-4">
                           <ProductBatchStatusPill status={b.status} />
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <ComplianceCell score={b.complianceScore ?? null} />
                         </td>
                         <td className="py-3 px-4">
                           <RiskPill level={b.riskLevel} />
@@ -264,6 +287,11 @@ export default function ProductQualityQueuePage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => setLineageBatch(b.productBatchNumber)}
+                                >
+                                  <Network className="h-3.5 w-3.5" /> View lineage
+                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() =>
                                     clone.mutate(b.productBatchNumber, {
@@ -348,6 +376,54 @@ export default function ProductQualityQueuePage() {
           </div>
         </div>
       </div>
+
+      <Sheet open={Boolean(lineageBatch)} onOpenChange={(o) => !o && setLineageBatch(null)}>
+        <SheetContent side="right" className="w-[460px] sm:max-w-[460px]">
+          <SheetHeader>
+            <SheetTitle>Material lineage</SheetTitle>
+            <SheetDescription>
+              Direct upstream and downstream records for {lineageBatch}.
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody>
+            {lineageBatch && (
+              <MaterialLineagePanel
+                nodeType="product-batch"
+                nodeKey={lineageBatch}
+              />
+            )}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
     </AppShell>
+  );
+}
+
+function ComplianceCell({ score }: { score: number | null }) {
+  if (score == null) {
+    return <span className="text-ink-subtle text-[12px]">—</span>;
+  }
+  const tone: "success" | "warning" | "danger" | "info" =
+    score >= 90 ? "success" : score >= 75 ? "info" : score >= 60 ? "warning" : "danger";
+  return (
+    <div className="inline-flex items-center gap-2 tabular-nums">
+      <Badge tone={tone} className="text-[11px]">
+        {score}
+      </Badge>
+      <div className="hidden sm:block w-14 h-1.5 rounded-full bg-inset overflow-hidden">
+        <div
+          className={`h-full ${
+            tone === "success"
+              ? "bg-success"
+              : tone === "info"
+              ? "bg-info"
+              : tone === "warning"
+              ? "bg-warning"
+              : "bg-danger"
+          }`}
+          style={{ width: `${Math.max(4, Math.min(100, score))}%` }}
+        />
+      </div>
+    </div>
   );
 }

@@ -12,7 +12,9 @@ import { ProductApprovalCenter } from "@/components/product-quality/product-appr
 import { ProductActivityFeed } from "@/components/product-quality/product-activity-feed";
 import { ProductAuditDrawer } from "@/components/product-quality/product-audit-drawer";
 import { GenealogyCard } from "@/components/genealogy/genealogy-card";
-import { QualityJourneyPanel } from "@/components/genealogy/quality-journey-panel";
+import { LifecycleProgressPanel } from "@/components/genealogy/lifecycle-progress-panel";
+import { MaterialLineagePanel } from "@/components/genealogy/material-lineage-panel";
+import { RelatedTasksPanel } from "@/components/work/related-tasks-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useProductBatch,
@@ -58,7 +60,13 @@ export default function ProductQualityWorkbenchPage() {
             </div>
             <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
               <ProductInsightsPanel productBatchNumber={n} />
-              <QualityJourneyPanel nodeType="product-batch" nodeKey={n} />
+              <LifecycleProgressPanel nodeType="product-batch" nodeKey={n} />
+              <MaterialLineagePanel nodeType="product-batch" nodeKey={n} />
+              <RelatedTasksPanel
+                recordKey={n}
+                moduleKey="product-quality"
+                description="Sampling, testing, review and approval tasks for this product batch."
+              />
               <ProductApprovalCenter batch={batch} />
               <ProductActivityFeed
                 productBatchNumber={n}

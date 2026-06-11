@@ -205,11 +205,15 @@ def create_metal_batch(body: MetalBatchCreate) -> MetalBatch:
         operator=body.operator,
         status=MetalBatchStatus.PENDING_SAMPLING,
         riskLevel=RiskLevel.LOW,
+        sourceQualificationNumber=body.sourceQualificationNumber,
         createdAt=now_iso(),
         createdBy="Current User",
         notes=body.notes,
     )
     db.metal_batches[bid] = batch
+    if body.sourceQualificationNumber:
+        from app.frameworks import lineage as lineage_fw
+        lineage_fw.link_qualification_to_metal_batch(body.sourceQualificationNumber, number)
     wf = workflow_engine.create_workflow("metal-quality-control", bid)
     workflow_engine.complete_through(wf, "batch", "Current User")
     db.workflows[bid] = wf

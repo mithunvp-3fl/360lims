@@ -37,7 +37,9 @@ from app.schemas.product_batch import (
     ProductResult,
     ProductApproval,
 )
-from app.schemas.certificate import Certificate
+from app.schemas.certificate import Certificate, DispatchApprovalRecord
+from app.schemas.lineage import LineageLink
+from app.schemas.task import Task
 
 
 class Store:
@@ -75,6 +77,15 @@ class Store:
 
         # Phase 5 — Certificate & Dispatch
         self.certificates: Dict[str, Certificate] = {}
+        # Phase 5 enterprise hardening — one record per dispatch decision (Phase 11).
+        self.dispatch_approvals: Dict[str, DispatchApprovalRecord] = {}
+
+        # Platform — Material Lineage (typed-relationship edges).
+        # Optional; falls back to source* fields on records when empty.
+        self.lineage_links: Dict[str, LineageLink] = {}
+
+        # Platform — Workflow Tasks (parallel work, approvals, escalations).
+        self.tasks: Dict[str, Task] = {}
 
     def supplier_by_id(self, sid: str) -> Supplier | None:
         return self.suppliers.get(sid)
@@ -187,6 +198,18 @@ class Store:
             if c.certificateNumber == number:
                 return c
         return None
+
+    def certificates_in_lineage(self, root_number: str) -> List[Certificate]:
+        """All revisions sharing a root certificate number, sorted by version."""
+        items = [
+            c for c in self.certificates.values()
+            if (c.rootCertificateNumber or c.certificateNumber) == root_number
+        ]
+        items.sort(key=lambda c: c.version)
+        return items
+
+    def dispatch_approvals_for_certificate(self, certificate_id: str) -> List[DispatchApprovalRecord]:
+        return [a for a in self.dispatch_approvals.values() if a.certificateId == certificate_id]
 
 
 db = Store()

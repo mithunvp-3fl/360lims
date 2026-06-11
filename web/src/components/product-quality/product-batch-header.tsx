@@ -45,6 +45,22 @@ export function ProductBatchHeader({
             <Badge tone="outline">Product Quality Testing</Badge>
             <Badge tone="accent">{batch.productType}</Badge>
             {batch.customer && <Badge tone="info">{batch.customer}</Badge>}
+            {batch.complianceScore != null && (
+              <Badge
+                tone={
+                  batch.complianceScore >= 90
+                    ? "success"
+                    : batch.complianceScore >= 75
+                    ? "info"
+                    : batch.complianceScore >= 60
+                    ? "warning"
+                    : "danger"
+                }
+                className="tabular-nums"
+              >
+                Compliance {batch.complianceScore}/100
+              </Badge>
+            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 pt-2">

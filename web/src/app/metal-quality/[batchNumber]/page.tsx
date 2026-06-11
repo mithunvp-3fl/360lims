@@ -13,7 +13,8 @@ import { MetalApprovalCenter } from "@/components/metal-quality/metal-approval-c
 import { MetalActivityFeed } from "@/components/metal-quality/metal-activity-feed";
 import { MetalAuditDrawer } from "@/components/metal-quality/metal-audit-drawer";
 import { GenealogyCard } from "@/components/genealogy/genealogy-card";
-import { QualityJourneyPanel } from "@/components/genealogy/quality-journey-panel";
+import { LifecycleProgressPanel } from "@/components/genealogy/lifecycle-progress-panel";
+import { MaterialLineagePanel } from "@/components/genealogy/material-lineage-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMetalBatch,
@@ -60,7 +61,8 @@ export default function MetalQualityWorkbenchPage() {
             </div>
             <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
               <MetalInsightsPanel metalBatchNumber={n} />
-              <QualityJourneyPanel nodeType="metal-batch" nodeKey={n} />
+              <LifecycleProgressPanel nodeType="metal-batch" nodeKey={n} />
+              <MaterialLineagePanel nodeType="metal-batch" nodeKey={n} />
               <MetalApprovalCenter batch={batch} />
               <MetalActivityFeed
                 metalBatchNumber={n}

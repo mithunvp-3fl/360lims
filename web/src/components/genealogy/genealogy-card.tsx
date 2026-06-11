@@ -59,8 +59,8 @@ export function GenealogyCard({ nodeType, nodeKey, className }: GenealogyCardPro
 
   return (
     <SectionCard
-      title="Quality Journey"
-      description="End-to-end traceability across the production lifecycle"
+      title="Material Lineage — Full Chain"
+      description="End-to-end record relationships across the production lifecycle"
       icon={<GitBranch className="h-4 w-4" />}
       className={className}
       actions={data ? <Badge tone="muted">{data.coverage}/5 steps</Badge> : null}

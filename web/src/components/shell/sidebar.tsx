@@ -4,8 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Boxes,
+  CheckCircle2,
   ClipboardList,
   Droplets,
   FileCheck,
@@ -13,11 +15,13 @@ import {
   FlaskRound,
   Gauge,
   GitBranch,
+  Inbox,
   LineChart,
   Microscope,
   Package,
   Settings,
   Stamp,
+  Users,
   Workflow as WorkflowIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,12 +40,22 @@ const sections: Array<{
     ],
   },
   {
+    label: "My Workspace",
+    items: [
+      { label: "My Work", href: "/work/my", icon: <Inbox className="h-4 w-4" />, badge: "New" },
+      { label: "Approvals", href: "/work/approvals", icon: <CheckCircle2 className="h-4 w-4" /> },
+      { label: "Team Work", href: "/work/team", icon: <Users className="h-4 w-4" /> },
+      { label: "Escalations", href: "/work/escalations", icon: <AlertTriangle className="h-4 w-4" /> },
+      { label: "Completed", href: "/work/completed", icon: <FileCheck className="h-4 w-4" /> },
+    ],
+  },
+  {
     label: "Quality Operations",
     items: [
       { label: "Process Material Qualification", href: "/qualification", icon: <FlaskRound className="h-4 w-4" /> },
       { label: "Qualification Workbench", href: "/qualification/PMQ-2026-001245", icon: <WorkflowIcon className="h-4 w-4" />, badge: "Demo" },
       { label: "Metal Quality Control", href: "/metal-quality", icon: <Droplets className="h-4 w-4" /> },
-      { label: "Metal QC Workbench", href: "/metal-quality/MB-2026-001245", icon: <Flame className="h-4 w-4" />, badge: "Demo" },
+      { label: "Metal QC Workbench", href: "/metal-quality/MB-2026-000789", icon: <Flame className="h-4 w-4" />, badge: "Demo" },
       { label: "Product Quality Testing", href: "/product-quality", icon: <Package className="h-4 w-4" /> },
       { label: "Product QC Workbench", href: "/product-quality/PB-2026-000210", icon: <Boxes className="h-4 w-4" />, badge: "Demo" },
       { label: "Certificate & Dispatch", href: "/certificates", icon: <Stamp className="h-4 w-4" /> },

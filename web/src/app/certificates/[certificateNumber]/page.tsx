@@ -12,8 +12,14 @@ import { CertificateInsightsPanel } from "@/components/certificates/certificate-
 import { DispatchApprovalCenter } from "@/components/certificates/dispatch-approval-center";
 import { CertificateActivityFeed } from "@/components/certificates/certificate-activity-feed";
 import { CertificateAuditDrawer } from "@/components/certificates/certificate-audit-drawer";
+import { CertificateVersionPanel } from "@/components/certificates/certificate-version-panel";
+import { ApprovalChainPanel } from "@/components/certificates/approval-chain-panel";
+import { CertificateEventsTimeline } from "@/components/certificates/certificate-events-timeline";
+import { TraceabilitySummaryCard } from "@/components/certificates/traceability-summary-card";
 import { GenealogyCard } from "@/components/genealogy/genealogy-card";
-import { QualityJourneyPanel } from "@/components/genealogy/quality-journey-panel";
+import { LifecycleProgressPanel } from "@/components/genealogy/lifecycle-progress-panel";
+import { MaterialLineagePanel } from "@/components/genealogy/material-lineage-panel";
+import { RelatedTasksPanel } from "@/components/work/related-tasks-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCertificate } from "@/lib/queries";
 
@@ -57,12 +63,23 @@ export default function CertificateWorkbenchPage() {
                 customer={certificate.customer}
                 specs={certificate.customerSpecs}
               />
+              <TraceabilitySummaryCard certificateNumber={n} />
               <QualityResultsSummary certificateNumber={n} />
+              <CertificateEventsTimeline certificateNumber={n} />
               <GenealogyExpandedView certificateNumber={n} />
             </div>
             <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
               <CertificateInsightsPanel certificateNumber={n} />
-              <QualityJourneyPanel nodeType="certificate" nodeKey={n} />
+              <ApprovalChainPanel certificate={certificate} />
+              <CertificateVersionPanel certificate={certificate} />
+              <RelatedTasksPanel
+                recordKey={n}
+                moduleKey="certificates"
+                title="Certificate tasks"
+                description="Review → Approve Certificate → Approve Dispatch → Release."
+              />
+              <LifecycleProgressPanel nodeType="certificate" nodeKey={n} />
+              <MaterialLineagePanel nodeType="certificate" nodeKey={n} />
               <DispatchApprovalCenter certificate={certificate} />
               <CertificateActivityFeed
                 certificateNumber={n}

@@ -55,6 +55,7 @@ class ProductBatch(BaseModel):
     createdAt: str
     createdBy: str
     notes: Optional[str] = None
+    complianceScore: Optional[int] = None   # snapshot from product_insights.compute()
 
 
 class ProductBatchCreate(BaseModel):

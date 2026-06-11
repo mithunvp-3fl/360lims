@@ -40,10 +40,18 @@ from app.schemas.result import (
     ResultValue,
 )
 from app.schemas.sample import SampleStatus
+from app.schemas.task import (
+    ApprovalDecision as TaskApprovalDecision,
+    AssignmentType,
+    TaskCreate,
+    TaskPriority,
+    TaskState,
+    TaskType,
+)
 from app.schemas.test import TestStatus
 from app.schemas.workflow import Workflow
 from app.store import db
-from app.frameworks import audit, notifications as notif, workflow_engine
+from app.frameworks import audit, notifications as notif, task_engine, workflow_engine
 from app.frameworks import product_insights as product_fw
 
 
@@ -154,6 +162,241 @@ def _advance_after_result(product_batch_id: str) -> None:
 
 
 # --------------------------------------------------------------------------
+# Insights + compliance snapshot — single source of truth used by both the
+# read endpoint and the post-mutation refresh hook.
+# --------------------------------------------------------------------------
+_HIST_SCORE_FALLBACK = {
+    ProductBatchStatus.APPROVED: 94,
+    ProductBatchStatus.PENDING_REVIEW: 80,
+    ProductBatchStatus.PENDING_TESTING: 62,
+    ProductBatchStatus.PENDING_SAMPLING: 48,
+    ProductBatchStatus.ON_HOLD: 58,
+    ProductBatchStatus.RETEST: 55,
+    ProductBatchStatus.REJECTED: 40,
+    ProductBatchStatus.CANCELLED: 32,
+}
+
+
+_STABILITY_STATUSES = {
+    ProductBatchStatus.APPROVED,
+    ProductBatchStatus.ON_HOLD,
+    ProductBatchStatus.RETEST,
+}
+
+
+def _historical_context(batch: ProductBatch) -> tuple[list[HistoricalProductBatch], list[ProductResult]]:
+    """Build the historical context fed to insights.compute().
+
+    Only batches that reached a *delivered* outcome (Approved / On Hold / Retest)
+    contribute to the stability sample — in-flight (Pending*) and dead-end
+    (Rejected / Cancelled) batches are noise for trend comparison.
+    """
+    history: list[HistoricalProductBatch] = []
+    historical_result_ids: set[str] = set()
+    for other in db.product_batches.values():
+        if other.id == batch.id or other.productType != batch.productType:
+            continue
+        if other.status not in _STABILITY_STATUSES:
+            continue
+        score = other.complianceScore if other.complianceScore is not None else _HIST_SCORE_FALLBACK.get(other.status, 60)
+        history.append(HistoricalProductBatch(
+            productBatchNumber=other.productBatchNumber,
+            productType=other.productType,
+            createdAt=other.createdAt,
+            outcome=_outcome_from_status(other.status),
+            complianceScore=score,
+            riskLevel=other.riskLevel,
+        ))
+        for past in db.presults_for_batch(other.id):
+            historical_result_ids.add(past.id)
+    history.sort(key=lambda h: h.createdAt, reverse=True)
+    historical_results = [
+        db.product_results[rid] for rid in historical_result_ids if rid in db.product_results
+    ]
+    return history, historical_results
+
+
+def _compute_insight(batch: ProductBatch) -> ProductInsight:
+    history, historical_results = _historical_context(batch)
+    return product_fw.compute(
+        product_batch_id=batch.id,
+        product_type=batch.productType,
+        tests=db.ptests_for_batch(batch.id),
+        results=db.presults_for_batch(batch.id),
+        historical_batches=history,
+        historical_results=historical_results,
+    )
+
+
+def _refresh_compliance_score(batch: ProductBatch) -> None:
+    """Snapshot the latest product compliance score onto the batch entity."""
+    batch.complianceScore = _compute_insight(batch).productCompliance
+
+
+# --------------------------------------------------------------------------
+# Task engine integration — emits role-owned tasks aligned with the workflow.
+# Tests run in parallel (no blockedBy between siblings); QA review is blocked
+# by the five mandatory test tasks; QA approval is blocked by the review.
+# --------------------------------------------------------------------------
+ROLE_PRODUCTION_ENGINEER = "production-engineer"
+ROLE_LAB_ANALYST = "lab-analyst"
+ROLE_QA_ENGINEER = "qa-engineer"
+ROLE_QA_MANAGER = "qa-manager"
+
+MANDATORY_TEST_CODES = {"UTS", "HARDNESS", "CONDUCTIVITY", "METALLOGRAPHY", "VISUAL"}
+
+_OPEN_TASK_STATES = {
+    TaskState.NEW, TaskState.ASSIGNED, TaskState.IN_PROGRESS,
+    TaskState.WAITING, TaskState.ESCALATED,
+}
+
+
+def _open_tasks_for(entity_type: str, entity_id: str, task_type: Optional[TaskType] = None) -> list:
+    out = []
+    for t in db.tasks.values():
+        if t.entityType != entity_type or t.entityId != entity_id:
+            continue
+        if task_type is not None and t.taskType != task_type:
+            continue
+        if t.state not in _OPEN_TASK_STATES:
+            continue
+        out.append(t)
+    return out
+
+
+def _emit_sampling_task(batch: ProductBatch) -> None:
+    task_engine.create_task(
+        TaskCreate(
+            title=f"Collect product sample — {batch.productBatchNumber}",
+            description=f"Draw a representative sample for {batch.productType.value}.",
+            taskType=TaskType.SAMPLING,
+            moduleKey="product-quality",
+            stageKey="sample",
+            assignmentType=AssignmentType.ROLE,
+            assignedRole=ROLE_LAB_ANALYST,
+            entityType="product-batch",
+            entityId=batch.id,
+            recordKey=batch.productBatchNumber,
+            priority=TaskPriority.MEDIUM,
+            slaTargetMins=240,
+            slaWarningMins=180,
+            slaEscalationMins=360,
+            nextAction="Collect sample",
+            href=f"/product-quality/{batch.productBatchNumber}",
+        ),
+        actor="Current User",
+        actor_role="Production Engineer",
+    )
+
+
+def _emit_test_review_approval_chain(batch: ProductBatch, sample: ProductSample) -> None:
+    """Emit one task per scheduled test (parallel), a QA review blocked by the
+    mandatory test set, and a QA approval blocked by the review."""
+    # Close out any open sampling task — sample is now collected.
+    for st in _open_tasks_for("product-batch", batch.id, TaskType.SAMPLING):
+        task_engine.complete_task(st.id, actor=sample.collectedBy, actor_role="Lab Analyst")
+
+    mandatory_task_ids: list[str] = []
+    for test in db.ptests_for_batch(batch.id):
+        if test.sampleId != sample.id:
+            continue
+        title_suffix = test.code.title() if test.code else test.name
+        tt = task_engine.create_task(
+            TaskCreate(
+                title=f"{test.name} — {batch.productBatchNumber}",
+                description=f"Capture {test.name} for sample {sample.sampleId}.",
+                taskType=TaskType.TESTING,
+                moduleKey="product-quality",
+                stageKey="testing",
+                assignmentType=AssignmentType.ROLE,
+                assignedRole=ROLE_LAB_ANALYST,
+                entityType="product-test",
+                entityId=test.id,
+                recordKey=batch.productBatchNumber,
+                priority=TaskPriority.MEDIUM,
+                slaTargetMins=360,
+                slaWarningMins=240,
+                slaEscalationMins=480,
+                nextAction=f"Import {title_suffix} result",
+                href=f"/product-quality/{batch.productBatchNumber}",
+            ),
+            actor="Current User",
+            actor_role="Lab Analyst",
+        )
+        if test.code in MANDATORY_TEST_CODES:
+            mandatory_task_ids.append(tt.id)
+
+    review = task_engine.create_task(
+        TaskCreate(
+            title=f"Review product compliance — {batch.productBatchNumber}",
+            description="Validate the result set against product specifications and recommend a release action.",
+            taskType=TaskType.REVIEW,
+            moduleKey="product-quality",
+            stageKey="review",
+            assignmentType=AssignmentType.ROLE,
+            assignedRole=ROLE_QA_ENGINEER,
+            entityType="product-batch",
+            entityId=batch.id,
+            recordKey=batch.productBatchNumber,
+            priority=TaskPriority.HIGH,
+            blockedBy=mandatory_task_ids,
+            slaTargetMins=240,
+            slaWarningMins=180,
+            slaEscalationMins=360,
+            nextAction="Complete review",
+            href=f"/product-quality/{batch.productBatchNumber}",
+        ),
+        actor="Current User",
+        actor_role="QA Engineer",
+    )
+
+    task_engine.create_task(
+        TaskCreate(
+            title=f"Approve product batch — {batch.productBatchNumber}",
+            description="Approve, hold, reject, or request retest.",
+            taskType=TaskType.APPROVAL,
+            moduleKey="product-quality",
+            stageKey="release",
+            assignmentType=AssignmentType.ROLE,
+            assignedRole=ROLE_QA_MANAGER,
+            entityType="product-batch",
+            entityId=batch.id,
+            recordKey=batch.productBatchNumber,
+            priority=TaskPriority.HIGH,
+            blockedBy=[review.id],
+            slaTargetMins=180,
+            slaWarningMins=120,
+            slaEscalationMins=240,
+            nextAction="Decide",
+            href=f"/product-quality/{batch.productBatchNumber}",
+        ),
+        actor="Current User",
+        actor_role="QA Manager",
+    )
+
+
+def _complete_test_task(test: ProductTest, actor: str) -> None:
+    for tt in _open_tasks_for("product-test", test.id, TaskType.TESTING):
+        task_engine.complete_task(tt.id, actor=actor, actor_role="Lab Analyst")
+
+
+_DECISION_TO_APPROVAL = {
+    ProductDecision.APPROVE: TaskApprovalDecision.APPROVE,
+    ProductDecision.HOLD: TaskApprovalDecision.HOLD,
+    ProductDecision.REJECT: TaskApprovalDecision.REJECT,
+    ProductDecision.RETEST: TaskApprovalDecision.ESCALATE,
+}
+
+
+def _close_review_and_approval(batch: ProductBatch, decision: ProductDecision, reason: Optional[str], actor: str) -> None:
+    for rt in _open_tasks_for("product-batch", batch.id, TaskType.REVIEW):
+        task_engine.complete_task(rt.id, actor=actor, actor_role="QA Engineer", note=reason)
+    decision_kind = _DECISION_TO_APPROVAL[decision]
+    for at in _open_tasks_for("product-batch", batch.id, TaskType.APPROVAL):
+        task_engine.decide_approval(at.id, decision_kind, reason, actor=actor, actor_role="QA Manager")
+
+
+# --------------------------------------------------------------------------
 # Product Batches — CRUD + queue
 # --------------------------------------------------------------------------
 @router.get("/product-batches", response_model=list[ProductBatch])
@@ -227,7 +470,7 @@ def create_product_batch(body: ProductBatchCreate) -> ProductBatch:
     workflow_engine.complete_through(wf, "batch", "Current User")
     db.workflows[bid] = wf
 
-    audit.record("Current User", "Production Operator", "create", "product-batch",
+    audit.record("Current User", "Production Engineer", "create", "product-batch",
                  bid, None, batch.model_dump())
     notif.emit(
         "Product batch created successfully",
@@ -235,6 +478,7 @@ def create_product_batch(body: ProductBatchCreate) -> ProductBatch:
         NotificationSeverity.SUCCESS,
         "product-batch", bid,
     )
+    _emit_sampling_task(batch)
     return batch
 
 
@@ -295,10 +539,11 @@ def clone_product_batch(product_batch_number: str) -> ProductBatch:
     wf = workflow_engine.create_workflow("product-quality-testing", bid)
     workflow_engine.complete_through(wf, "batch", "Current User")
     db.workflows[bid] = wf
-    audit.record("Current User", "Production Operator", "clone", "product-batch",
+    audit.record("Current User", "Production Engineer", "clone", "product-batch",
                  bid, src.model_dump(), clone.model_dump())
     notif.emit("Product batch cloned", f"{number} cloned from {src.productBatchNumber}.",
                NotificationSeverity.SUCCESS, "product-batch", bid)
+    _emit_sampling_task(clone)
     return clone
 
 
@@ -361,6 +606,7 @@ def create_product_sample(
         NotificationSeverity.SUCCESS,
         "product-sample", sid,
     )
+    _emit_test_review_approval_chain(b, sample)
     return sample
 
 
@@ -448,7 +694,9 @@ def _record_result(
     )
     db.product_results[rid] = result
     test.status = TestStatus.COMPLETED
+    _complete_test_task(test, entered_by)
     _advance_after_result(batch.id)
+    _refresh_compliance_score(batch)
     return result
 
 
@@ -697,6 +945,8 @@ def decide_product_batch(
         b.id, prev, b.model_dump(), notes=body.reason,
     )
     notif.emit(title, message, severity, "product-batch", b.id)
+    _close_review_and_approval(b, body.decision, body.reason, actor="Current User")
+    _refresh_compliance_score(b)
     return approval
 
 
@@ -708,52 +958,10 @@ def product_insights(product_batch_number: str) -> ProductInsight:
     b = db.product_batch_by_number(product_batch_number)
     if not b:
         raise HTTPException(404, "Product batch not found")
-
-    tests = db.ptests_for_batch(b.id)
-    results = db.presults_for_batch(b.id)
-
-    history: List[HistoricalProductBatch] = []
-    historical_result_ids: set[str] = set()
-    score_map = {
-        ProductBatchStatus.APPROVED: 94,
-        ProductBatchStatus.PENDING_REVIEW: 80,
-        ProductBatchStatus.PENDING_TESTING: 62,
-        ProductBatchStatus.PENDING_SAMPLING: 48,
-        ProductBatchStatus.ON_HOLD: 58,
-        ProductBatchStatus.RETEST: 55,
-        ProductBatchStatus.REJECTED: 40,
-        ProductBatchStatus.CANCELLED: 32,
-    }
-    for other in db.product_batches.values():
-        if other.id == b.id:
-            continue
-        if other.productType != b.productType:
-            continue
-        history.append(HistoricalProductBatch(
-            productBatchNumber=other.productBatchNumber,
-            productType=other.productType,
-            createdAt=other.createdAt,
-            outcome=_outcome_from_status(other.status),
-            complianceScore=score_map.get(other.status, 60),
-            riskLevel=other.riskLevel,
-        ))
-        for past in db.presults_for_batch(other.id):
-            historical_result_ids.add(past.id)
-    history.sort(key=lambda h: h.createdAt, reverse=True)
-    historical_results = [
-        db.product_results[rid]
-        for rid in historical_result_ids
-        if rid in db.product_results
-    ]
-
-    return product_fw.compute(
-        product_batch_id=b.id,
-        product_type=b.productType,
-        tests=tests,
-        results=results,
-        historical_batches=history,
-        historical_results=historical_results,
-    )
+    insight = _compute_insight(b)
+    # Keep the snapshot in sync with what the panel just rendered.
+    b.complianceScore = insight.productCompliance
+    return insight
 
 
 # --------------------------------------------------------------------------

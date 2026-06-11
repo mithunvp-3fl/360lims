@@ -41,7 +41,7 @@ class MetalBatchDecision(str, Enum):
 # --- Metal Batch ---
 class MetalBatch(BaseModel):
     id: str
-    metalBatchNumber: str       # e.g. MB-2026-001245
+    metalBatchNumber: str       # e.g. MB-2026-000789
     productGrade: ProductGrade
     potline: str                # e.g. PL-03
     shift: Optional[str] = None

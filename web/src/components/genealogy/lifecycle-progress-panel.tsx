@@ -15,23 +15,23 @@ import { cn } from "@/lib/utils";
 import { useJourneyTimeline } from "@/lib/queries";
 import type { GenealogyNodeType, JourneyStep } from "@/lib/types";
 
-export interface QualityJourneyPanelProps {
+export interface LifecycleProgressPanelProps {
   nodeType: GenealogyNodeType;
   nodeKey: string;
   className?: string;
 }
 
-export function QualityJourneyPanel({
+export function LifecycleProgressPanel({
   nodeType,
   nodeKey,
   className,
-}: QualityJourneyPanelProps) {
+}: LifecycleProgressPanelProps) {
   const { data, isLoading } = useJourneyTimeline(nodeType, nodeKey);
 
   return (
     <SectionCard
-      title="Quality Journey"
-      description="5-step progress · supplier → certificate"
+      title="Lifecycle Progress"
+      description="Business stages from receipt to dispatch"
       icon={<Route className="h-4 w-4" />}
       className={className}
     >

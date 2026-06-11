@@ -652,6 +652,7 @@ export interface ProductBatch {
   createdAt: string;
   createdBy: string;
   notes?: string | null;
+  complianceScore?: number | null;
 }
 
 export interface ProductSample {
@@ -754,6 +755,8 @@ export type DispatchDecision =
   | "Override"
   | "Release";
 
+export type MarginStatus = "Safe" | "Tight" | "Breach" | "N/A";
+
 export interface CustomerSpec {
   parameter: string;
   unit: string;
@@ -762,6 +765,9 @@ export interface CustomerSpec {
   requiredTarget?: number | null;
   actualValue?: number | null;
   complianceStatus: ResultStatus;
+  marginValue?: number | null;
+  marginPct?: number | null;
+  marginStatus: MarginStatus;
 }
 
 export interface Certificate {
@@ -781,6 +787,60 @@ export interface Certificate {
   barcodeValue: string;
   digitalSignaturePlaceholder: string;
   notes?: string | null;
+  // Phase 5 enterprise hardening
+  version: number;
+  parentCertificateNumber?: string | null;
+  rootCertificateNumber?: string | null;
+  revisionReason?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  dispatchApprovedBy?: string | null;
+  dispatchApprovedAt?: string | null;
+  releasedBy?: string | null;
+  releasedAt?: string | null;
+}
+
+export interface DispatchApprovalRecord {
+  id: string;
+  certificateId: string;
+  certificateNumber: string;
+  decision: DispatchDecision;
+  reason?: string | null;
+  decidedBy: string;
+  decidedByRole: string;
+  decidedAt: string;
+}
+
+export interface CertificateEvent {
+  timestamp: string;
+  actor: string;
+  actorRole?: string | null;
+  action: string;
+  label: string;
+  severity: "info" | "success" | "warning" | "danger";
+  notes?: string | null;
+  relatedId?: string | null;
+  relatedType?: string | null;
+}
+
+export interface VerifyPayload {
+  certificateNumber: string;
+  version: number;
+  customer: string;
+  productBatchNumber: string;
+  metalBatchNumber?: string | null;
+  qualificationNumber?: string | null;
+  rawMaterialLotNumber?: string | null;
+  status: CertificateStatus;
+  dispatchStatus: DispatchStatus;
+  issuedAt?: string | null;
+  issuedBy?: string | null;
+  customerComplianceCount: number;
+  customerComplianceTotal: number;
+  releaseConfidence?: number | null;
+  certificateHealth?: number | null;
+  verifiedAt: string;
+  authentic: boolean;
 }
 
 export type CertificateRecommendation =
@@ -789,6 +849,15 @@ export type CertificateRecommendation =
   | "REJECT DISPATCH"
   | "REQUEST REVIEW"
   | "AWAITING DATA";
+
+export interface CertificateHealth {
+  score: number;
+  dataCompleteness: number;
+  specCoverage: number;
+  signaturePresence: number;
+  freshness: number;
+  notes: string[];
+}
 
 export interface CertificateInsight {
   certificateId: string;
@@ -800,6 +869,7 @@ export interface CertificateInsight {
   customerComplianceCount: number;
   customerComplianceTotal: number;
   observations: string[];
+  certificateHealth?: CertificateHealth | null;
 }
 
 export interface QualityStepSummary {
@@ -818,4 +888,250 @@ export interface QualitySummary {
   qualificationNumber?: string | null;
   rawMaterialLotNumber?: string | null;
   steps: QualityStepSummary[];
+}
+
+// =====================================================================
+// Platform — Material Lineage (typed relationships)
+// =====================================================================
+export type RelationshipType =
+  | 'Direct'
+  | 'Representative'
+  | 'Derived'
+  | 'Consumed By'
+  | 'Produced By';
+
+export interface LineageEdge {
+  node: GenealogyNode;
+  relationshipType: RelationshipType;
+}
+
+export interface MaterialLineage {
+  current: GenealogyNode;
+  parents: LineageEdge[];
+  children: LineageEdge[];
+}
+
+// =====================================================================
+// Traceability Center V2 — chain-wide aggregations
+// =====================================================================
+export type QualityEventCategory =
+  | 'Sampling'
+  | 'Testing'
+  | 'Import'
+  | 'Approval'
+  | 'Release'
+  | 'Certificate'
+  | 'Dispatch'
+  | 'Other';
+
+export type QualityEventSeverity = 'info' | 'success' | 'warning' | 'danger';
+
+export interface QualityEvent {
+  timestamp: string;
+  category: QualityEventCategory;
+  severity: QualityEventSeverity;
+  title: string;
+  actor: string;
+  actorRole?: string | null;
+  nodeType: GenealogyNodeType;
+  nodeKey: string;
+  entityType: string;
+  entityId: string;
+  notes?: string | null;
+}
+
+export interface QualityEventsResponse {
+  currentKey: string;
+  events: QualityEvent[];
+}
+
+export interface ApprovalRationale {
+  nodeType: GenealogyNodeType;
+  nodeKey: string;
+  entityType: string;
+  entityId: string;
+  decision: string;
+  decisionTone: 'success' | 'warning' | 'danger' | 'info';
+  approver: string;
+  approverRole?: string | null;
+  decidedAt: string;
+  reason?: string | null;
+  supportingEvidence: string[];
+  href?: string | null;
+}
+
+export interface ApprovalsResponse {
+  currentKey: string;
+  items: ApprovalRationale[];
+}
+
+export interface ChainQualitySummary {
+  currentKey: string;
+  overallStatus: string;
+  overallStatusTone: StatusTone;
+  riskLevel: RiskLevel;
+  pendingTasks: number;
+  pendingApprovals: number;
+  overdueItems: number;
+  openDeviations: number;
+  chainCoverage: number;
+  lastEventAt?: string | null;
+  notes: string[];
+}
+
+export interface ScorecardMetric {
+  label: string;
+  score: number;
+  tone: 'success' | 'warning' | 'danger' | 'info';
+  detail?: string | null;
+}
+
+export interface QualityScorecard {
+  currentKey: string;
+  compliance: ScorecardMetric;
+  traceabilityCoverage: ScorecardMetric;
+  approvalCoverage: ScorecardMetric;
+  auditCompleteness: ScorecardMetric;
+  taskCompletion: ScorecardMetric;
+  overall: number;
+}
+
+export interface ImpactItem {
+  nodeType: GenealogyNodeType;
+  nodeKey: string;
+  title: string;
+  subtitle?: string | null;
+  status: string;
+  statusTone: StatusTone;
+  href?: string | null;
+  relationship: string;
+  distance: number;
+}
+
+export interface ImpactAnalysis {
+  currentKey: string;
+  triggerStatus: string;
+  affected: ImpactItem[];
+  affectedCustomers: string[];
+  affectedCertificates: string[];
+  summary: string;
+}
+
+export interface RiskFinding {
+  label: string;
+  count: number;
+  severity: 'info' | 'warning' | 'danger';
+  detail?: string | null;
+  items: string[];
+}
+
+export interface ChainRiskPanel {
+  currentKey: string;
+  riskLevel: RiskLevel;
+  findings: RiskFinding[];
+}
+
+export interface RelatedRecord {
+  nodeType: GenealogyNodeType;
+  nodeKey: string;
+  title: string;
+  subtitle?: string | null;
+  status: string;
+  statusTone: StatusTone;
+  href?: string | null;
+  relation: 'Parent' | 'Sibling' | 'Child' | 'Peer';
+}
+
+export interface RelatedRecords {
+  currentKey: string;
+  parents: RelatedRecord[];
+  siblings: RelatedRecord[];
+  children: RelatedRecord[];
+}
+
+// =====================================================================
+// Platform — Workflow Tasks / Approvals / Escalations
+// =====================================================================
+export type TaskState =
+  | 'New'
+  | 'Assigned'
+  | 'In Progress'
+  | 'Waiting'
+  | 'Completed'
+  | 'Cancelled'
+  | 'Escalated';
+
+export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Critical';
+
+export type TaskType =
+  | 'Sampling'
+  | 'Testing'
+  | 'Result Entry'
+  | 'Review'
+  | 'Approval'
+  | 'Dispatch'
+  | 'General';
+
+export type AssignmentType = 'User' | 'Role' | 'Team' | 'Queue';
+
+export type WorkflowApprovalDecision =
+  | 'Approve'
+  | 'Reject'
+  | 'Hold'
+  | 'Override'
+  | 'Escalate';
+
+export interface TaskComment {
+  id: string;
+  author: string;
+  authorRole?: string | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface WorkTask {
+  id: string;
+  title: string;
+  description?: string | null;
+  taskType: TaskType;
+  moduleKey: string;
+  stageKey?: string | null;
+  assignmentType: AssignmentType;
+  assignedRole?: string | null;
+  assignedTo?: string | null;
+  assignedTeam?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  recordKey?: string | null;
+  state: TaskState;
+  priority: TaskPriority;
+  blockedBy: string[];
+  slaTargetMins?: number | null;
+  slaWarningMins?: number | null;
+  slaEscalationMins?: number | null;
+  createdAt: string;
+  createdBy?: string | null;
+  dueAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  completedBy?: string | null;
+  decision?: WorkflowApprovalDecision | null;
+  decisionReason?: string | null;
+  comments: TaskComment[];
+  nextAction?: string | null;
+  isOverdue: boolean;
+  isWarning: boolean;
+  href?: string | null;
+}
+
+export interface WorkSummary {
+  role?: string | null;
+  myWork: number;
+  pendingApprovals: number;
+  overdue: number;
+  blocked: number;
+  upcoming: number;
+  completedToday: number;
+  teamWork: number;
+  escalations: number;
 }

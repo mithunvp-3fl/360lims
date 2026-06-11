@@ -35,6 +35,7 @@ import { useDashboardSummary, useNotifications, useReceipts, useRoleQueue } from
 import { relativeTime } from "@/lib/utils";
 import { useAuth } from "@/components/role-context";
 import { RoleQueueCard } from "@/components/dashboard/role-queue-card";
+import { OperationalStrip } from "@/components/dashboard/operational-strip";
 import { roleLabel } from "@/lib/roles";
 import type { ReceiptStatus } from "@/lib/types";
 
@@ -103,6 +104,9 @@ export default function DashboardPage() {
             </Button>
           </div>
         </div>
+
+        {/* Phase 9 operational strip — what needs me right now */}
+        <OperationalStrip />
 
         {/* Role-aware queue */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

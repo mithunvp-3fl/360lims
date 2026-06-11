@@ -1,490 +1,582 @@
-# Quality360 — End-to-End Demo Script (Fresh Chain, All 5 Steps)
+# Quality360 — The Aluminum Journey
 
-One continuous story. Create a fresh batch at the gate, follow it through five quality gates, ship a certified product to the customer. Same data, five workspaces, one chain.
+> One truckload. Five gates. A heat that splits. A certificate that gets revised. A QR that earns the customer's trust.
 
-**Estimated run time:** ~25 minutes for the full script, ~10 minutes for the lightning version at the bottom.
+This script is the canonical end-to-end demo. Every record is created live — no pre-baked heroes, no shortcuts. The story is the *journey of one truckload of Primary Aluminum* from the supplier gate to a customer-signed Certificate of Analysis, with three deliberate fan-out moments along the way that prove the platform speaks the language of real manufacturing.
+
+**Run time:** ~30 minutes for the full script · ~12 minutes for the lightning version at the bottom.
 
 ```
-  Step 1            Step 2              Step 3            Step 4               Step 5
-  Receipt           Qualification       Metal Batch       Product Batch        Certificate
-  Stores Exec       QA Engineer         Casthouse Op      Production Op        QA Engineer
-  Sampler           Sampler             Sampler           Sampler              QA Manager
-  Lab Analyst       Lab Analyst         Lab Analyst       Lab Analyst          Dispatch Executive
-  QA Manager        QA Manager          QA Manager        QA Manager           (= QA Manager)
+  Step 1            Step 2              Step 3             Step 4              Step 5
+  Receipt           Qualification       Metal Batch        Product Batch       Certificate
+  Stores Exec       QA Engineer         Casthouse Op       Production Op       QA Engineer
+  Sampler           Sampler             Sampler            Sampler             QA Manager
+  Lab Analyst       Lab Analyst         Lab Analyst        Lab Analyst         Dispatch Exec
+  QA Manager        QA Manager          QA Manager         QA Manager          (= QA Manager)
 ```
 
-**Why this demo:** Quality360 is **one chain, not five apps**. The same workbench primitives, the same audit, the same notification stream, the same instrument simulation — composed differently for each business question. By the end of these 25 minutes the audience will have watched **one** batch move through every gate with full traceability — receipt at the gate to certificate at the customer.
+**The framework argument, spoken once:** Quality360 is **one chain, not five apps**. The same workbench shell, the same audit log, the same notification bell, the same task framework, the same instrument simulation — composed differently for each business question. By the end of these thirty minutes you will have watched **one** input fan out into **two heats**, then into **two products**, then into **two certificates** — and the audit trail will read like a forensics report.
 
-> **Related per-step scripts** — if the audience wants to drill into one module: `DEMO.md` (Step 1), `DEMO_STEP2.md` (Step 2), `DEMO_STEP3.md` (Step 3), `DEMO_STEP4.md` (Step 4), `DEMO_STEP5.md` (Step 5). **This file is the cross-module story** — fresh records, live, end-to-end.
+> Per-step deep dives — `DEMO.md` (Step 1), `DEMO_STEP2.md` (Step 2), `DEMO_STEP3.md` (Step 3), `DEMO_STEP4.md` (Step 4), `DEMO_STEP5.md` (Step 5). **This file is the cross-module story** — fresh records, live, end-to-end.
 
 ---
 
-## Chapter 0 · Preflight (do this 60s before the demo)
+## Chapter 0 · Preflight (60s before the demo)
 
-> Goal: both servers running, hero data fresh, two tabs ready.
+> Goal: both servers running, hero data fresh, two tabs ready, the bell ticking.
 
 | # | Action | UI pointer |
 |---|---|---|
 | 0.1 | Open two PowerShell windows. | — |
-| 0.2 | **Window A** — `cd D:\srcCode\Vedant\fifthApproach\api` → `.\.venv\Scripts\Activate.ps1` → `uvicorn app.main:app --reload --port 8000`. | Wait for `Uvicorn running on http://127.0.0.1:8000`. |
+| 0.2 | **Window A** — `cd D:\srcCode\Vedant\fifthApproach\api` → `.\.venv\Scripts\Activate.ps1` → `pip install -r requirements.txt` (first run only, picks up `qrcode`, `python-barcode`, `reportlab`) → `uvicorn app.main:app --reload --port 8000`. | Wait for `Uvicorn running on http://127.0.0.1:8000`. |
 | 0.3 | **Window B** — `cd D:\srcCode\Vedant\fifthApproach\web` → `npm run dev`. | Wait for `Ready in …`. |
-| 0.4 | Open <http://localhost:3000> in a clean browser window. Sign in (or pick **QA Manager** from the topbar role chip — QA Manager unlocks every action; we'll switch down to the operating roles chapter by chapter). | You should land on `/dashboard`. |
-| 0.5 | Confirm the **bell icon** in the topbar shows a count — the notification stream now spans all five phases. | Top-right, beside the role chip. |
+| 0.4 | Open `http://localhost:3000` in a clean browser. Sign in (or pick **QA Manager** from the topbar role chip — we'll step down to operating roles per chapter). | You should land on `/dashboard`. |
+| 0.5 | Confirm the **bell** has a count and **My Work** badge in the sidebar shows pending tasks across modules. | Top-right + left rail. |
+| 0.6 | Stage a second browser window (or mobile camera) to `http://localhost:3000/verify/…` blank — you'll use it for the QR-scan moment in Chapter 7. | — |
 
-**Reset note:** The in-memory store rebuilds on every `uvicorn` restart. If you want to re-run this script from a blank slate, Ctrl+C in Window A and restart `uvicorn`. The frontend reconnects within ~4 seconds.
+**Reset note:** The in-memory store rebuilds on every `uvicorn` restart. Ctrl+C in Window A and rerun to clear the slate; the frontend reconnects in ~4 seconds.
 
 **Three things to watch the audience for while presenting:**
 
-1. **The role chip** — switching roles four to six times per chapter is the most visible proof of separation of duties. Pause briefly each time so the audience sees the chip text change.
-2. **The right-rail hero KPI name** — Supplier Health → Process Readiness → Metal Compliance → Product Compliance → Release Confidence. Call it out every time it swaps; this is the framework argument made visible.
-3. **The genealogy card** — empty downstream slot at Step 1 → one node deeper each chapter → full five-node ladder by Step 5. This is the "platform's full reach" moment.
+1. **The role chip** — switching roles four to six times per chapter is the most visible proof of separation of duties. Pause briefly each switch so the chip text registers.
+2. **The right-rail hero KPI name** — Supplier Health → Process Readiness → Metal Compliance → Product Compliance → Release Confidence + Certificate Health. Call it out every swap; the framework argument is on screen.
+3. **The genealogy card** — one node at Step 1, growing to five by Step 5. **At Chapters 3, 4, and 5 the chain branches sideways** — that's the 1-to-many moment for each gate.
 
-**Talking point:** "Quality360 is a Manufacturing Quality Intelligence Platform. Today I'll create one batch live and walk it from supplier gate to customer dispatch — five quality gates, five workspaces, one continuous chain of custody. By the end, the audit log will read like a forensics report."
+**Opening line:** "Quality360 is a Manufacturing Quality Intelligence Platform. Today I'm going to follow one truckload of Primary Aluminum live — from the gate, through five quality gates, into two different products, and out the door as two customer certificates. The audit log will read like a forensics report."
 
 ---
 
-## The story we're going to tell
+## The story we will tell
 
-> "We're going to follow **one truckload of Primary Aluminum scrap from Global Alloy Traders**. It arrives at the gate this morning. Our job — across the next 25 minutes — is to **accept it from procurement, qualify it for the Casthouse, cast it as P1020 metal, billet it for an export customer, and ship a certificate to Hindalco International**. Five quality questions, five workspaces, one chain. By the time we're done, the audit trail will read like a forensics report."
+> "A 35-tonne truckload of **Primary Aluminum** from **Global Alloy Traders** rolls in at 09:00. By 17:00 we have **two finished customer shipments** out the door — and **one revised certificate** in flight. Same input, three branch points, five modules, one continuous chain of custody."
 
-The presenter will create **a brand-new chain live, end-to-end**. Every step's entity is sourced from the previous step's entity — no shortcuts, no pre-baked heroes.
+The presenter creates a brand-new chain live. Every downstream entity is sourced from the upstream entity. **Three deliberate fan-outs** prove the platform handles real manufacturing physics:
 
-| Step | Entity | Concrete demo value |
-|---|---|---|
-| 1 | Receipt | Supplier **Global Alloy Traders**, Material **Primary Aluminum**, 35 MT, PO `PO-2026-DEMO`, vehicle `MH-12-CD-9999` |
-| 2 | Qualification | Material **Primary Aluminum**, Consumption area **Casthouse**, batch `PAL-2026-DEMO`, source lot from Step 1 |
-| 3 | Metal Batch | Grade **P1020**, Potline **PL-04**, Shift **A**, 30 MT, operator **Vikram Singh**, source qualification from Step 2 |
-| 4 | Product Batch | Type **Primary Aluminum Billet**, 100 MT, operator **Vikram Singh**, customer **Hindalco International**, source metal batch from Step 3 |
-| 5 | Certificate | Customer **Hindalco International**, product batch from Step 4 |
+```
+                                                ┌──► MB-2026-XXXXXX  (live, P1020, 30 MT)
+                              ┌── PMQ-...XX ────┤
+LOT-2026-XXXX  (Primary Al)   │                 └──► MB-...XX-B      (sibling heat, P1020, 28 MT, callout)
+                              │
+                              │                 ┌──► PB-...XX  (live, Billet for Hindalco)
+                              └── from PMQ ─────┤
+                                                └──► PB-...XX-B (callout — Ingot for Vedanta Domestic)
 
-> The lot, qualification, metal batch, product batch, and certificate numbers are minted by the API at create time — read them from the URL bar after each create. The script uses `LOT-2026-XXXX`, `PMQ-2026-XXXXXX`, `MB-2026-XXXXXX`, `PB-2026-XXXXXX`, `COA-2026-XXXXXX` as placeholders. **Keep a sticky note** — you'll reference each upstream number when you create the next entity.
+                                                ┌──► COA-...XX     (live, Hindalco International)
+                              from PB ──────────┤
+                                                ├──► COA-...XX-B   (live, Vedanta Domestic Client)
+                                                │
+                                                └──► COA-...XX-R1  (revision of Hindalco's certificate — Chapter 6)
+```
 
-### What gets reused across all 5 chapters
+| Step | Entity | Concrete demo values | Fan-out (this chapter) |
+|---|---|---|---|
+| 1 | Receipt | Supplier **Global Alloy Traders**, Material **Primary Aluminum**, 35 MT, PO `PO-2026-DEMO`, vehicle `MH-12-CD-9999` | 1 receipt → 1 sample → 3 tests (1-to-many at the sample) |
+| 2 | Qualification | Material **Primary Aluminum**, Consumption **Casthouse**, batch `PAL-2026-DEMO`, source lot from Step 1 | — |
+| 3 | Metal Batch | Grade **P1020**, Potline **PL-04**, Shift **A**, 30 MT, operator **Vikram Singh**, source qualification from Step 2 | **One qualification → two heats** (live + sibling callout) |
+| 4 | Product Batch | Type **Primary Aluminum Billet**, 100 MT, operator **Vikram Singh**, customer **Hindalco International**, source metal batch from Step 3 | **One heat → two products** (live + sibling callout) |
+| 5 | Certificate | Customer **Hindalco International**, product batch from Step 4 | **One product → two certificates** (Hindalco + domestic), then **certificate → revision** in Chapter 6 |
 
-| Concern | Behaviour |
+> Lot, qualification, metal batch, product batch, and certificate numbers are minted by the API at create time. Read them from the URL bar after each create. The script uses `LOT-2026-XXXX`, `PMQ-2026-XXXXXX`, `MB-2026-XXXXXX`, `PB-2026-XXXXXX`, `COA-2026-XXXXXX` as placeholders. **Keep a sticky note** — you'll reference each upstream number when you create the next entity.
+
+### Frameworks the audience will see fire
+
+| Framework | What surfaces in this demo |
 |---|---|
-| **Workbench shell** | Header → workflow timeline → workspace → right rail — identical layout on every workbench. |
-| **Workflow engine** | Five `WorkflowDefinition` registrations (`incoming-inspection`, `process-material-qualification`, `metal-quality-control`, `product-quality-testing`, certificate workflow). One engine, five sets of stage labels. |
-| **Audit trail** | Every mutation funnels through `audit.record(...)`. Entity types differ; the drawer doesn't. |
-| **Notifications** | Every successful mutation emits a toast and increments the bell. Cross-module feed. |
-| **Approval framework** | Three-button (Approve/Hold/Reject) or four-button (+ Downgrade / Retest / Review) grammar. Reason is mandatory on negative decisions. |
-| **Quality Insights** | Right-rail panel pattern. Hero KPI swaps per module — Supplier Health → Process Readiness → Metal Compliance → Product Compliance → Release Confidence. |
-| **Instrument simulation** | Six-stage flow on every Import — Connecting → Verifying → Reading → Parsing → Validating → Import Successful. Same simulation, different instrument. |
-| **Genealogy** | One card primitive that grows from one node at Step 1 to five nodes at Step 5. |
-| **Role gating** | `RoleGate` enforces permissions visually — every disabled button has a tooltip explaining which role is required. |
+| **Workbench Shell** | Header → workflow timeline → workspace → right rail — identical on every workbench. |
+| **Workflow Engine** | Five `WorkflowDefinition` registrations — one engine, five sets of stages. |
+| **Task Framework (new)** | Every workbench right rail has a **Related Tasks** panel — `Review → Approve → Dispatch → Release` for Step 5; per-test tasks for Steps 1–4. **My Work** in the sidebar aggregates across modules. |
+| **Approval Framework** | Three-button or four-button grammar per module. Step 5 now persists a **DispatchApprovalRecord** per decision — visible in the Approval Chain panel. |
+| **Audit Trail** | Every mutation funnels through `audit.record(...)`. The new **Quality Events Timeline** in Step 5 merges audit + tasks + dispatch into one chronological stream. |
+| **Notifications** | Every successful mutation toasts and increments the bell. Cross-module feed. |
+| **Quality Insights** | Right-rail panel pattern. Hero KPI swaps per module. Step 5 has **two** hero scores: Release Confidence + Certificate Health. |
+| **Instrument Simulation** | Six-stage flow on every Import — Connecting → Verifying → Reading → Parsing → Validating → Import Successful. Same simulation, five instruments. |
+| **Genealogy + Lineage** | One card grows from one node to five — and branches sideways at each fan-out. |
+| **Role Gating** | `RoleGate` enforces permissions visually. Every disabled button has a tooltip naming the required role. |
 
 ---
 
-## Chapter 1 · Receive the material (Step 1)
+## Chapter 1 · Receive the material  (Step 1)
 
-> Goal: accept a new truck at the gate, draw a sample, capture the chemistry, approve the lot. Roles: Stores Executive → Sampler → Lab Analyst → QA Manager.
+> Goal: accept the truckload at the gate, draw a sample, capture the chemistry, approve the lot.
+> Roles: Stores Executive → Sampler → Lab Analyst → QA Manager.
 
 ### 1.1 · Stores Executive — create the receipt
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 1.1.1 | **Switch role** | Topbar role chip → **Stores Executive**. | The role chip text updates. |
-| 1.1.2 | Stores Executive | Sidebar → **Inspection Queue**. | Left rail, *Operate* group. Land on `/inspection`. |
-| 1.1.3 | Stores Executive | Click **+ New Receipt** (top-right of the queue). | Primary violet button. |
-| 1.1.4 | Stores Executive | Fill the dialog: Supplier = **Global Alloy Traders**, Material = **Primary Aluminum**, Quantity = **35**, Vehicle = **MH-12-CD-9999**, PO = **PO-2026-DEMO**. | Two-column grid. |
+| 1.1.1 | **Switch role** | Topbar role chip → **Stores Executive**. | Chip text updates. |
+| 1.1.2 | Stores Executive | Sidebar → **Inspection Queue**. | Land on `/inspection`. |
+| 1.1.3 | Stores Executive | Click **+ New Receipt** (top-right). | Primary violet button. |
+| 1.1.4 | Stores Executive | Supplier = **Global Alloy Traders**, Material = **Primary Aluminum**, Quantity = **35**, Vehicle = **MH-12-CD-9999**, PO = **PO-2026-DEMO**. | Two-column dialog. |
 | 1.1.5 | Stores Executive | Click **Create receipt**. | Bottom-right. |
-| 1.1.6 | — | Read the new lot number from the URL bar — e.g. `LOT-2026-0051`. **Write this down**; you'll reference it in Chapter 2. | `/inspection/LOT-2026-XXXX`. |
+| 1.1.6 | — | Read the new lot number from the URL — e.g. `LOT-2026-0051`. **Sticky note it**. | `/inspection/LOT-2026-XXXX`. |
 
-**What to call out:** "Toast confirms ‘Receipt Created'. Bell increments. We land directly on the new lot's workbench. The lot number is minted server-side — no human re-types a sequence." Notice the workflow timeline: **Receipt** is green; **Sample** pulses. **The lot is now waiting on a sampler.**
+**Call out:** Toast confirms *Receipt Created*. Bell ticks. The lot number is minted server-side. Workflow timeline: **Receipt** green; **Sample** pulsing. **The lot is now waiting on a sampler — a task is already on the Sampler's queue.**
 
-### 1.2 · Sampler — draw the sample
+### 1.2 · Sampler — draw the sample (one receipt → one sample → three tests)
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 1.2.1 | **Switch role** | Topbar → **Sampler**. | Approve buttons grey out with tooltips. |
-| 1.2.2 | Sampler | Scroll to **Sample management** → click **Create Sample**. | Primary button on that card. |
-| 1.2.3 | — | Sample ID auto-mints to **`SMP-2026-XXXX-A`**. Three tests get auto-assigned: XRF Chemistry, OES Chemistry, Moisture. | Workflow timeline: Sample ✓, Testing pulses. |
+| 1.2.1 | **Switch role** | Topbar → **Sampler**. | Approve buttons grey out. |
+| 1.2.2 | Sampler | Scroll to **Sample management** → click **Create Sample**. | Primary button. |
+| 1.2.3 | — | Sample ID auto-mints to `SMP-XXXX-A`. **Three tests** auto-assigned: XRF Chemistry, OES Chemistry, Moisture. | Workflow timeline: Sample ✓, Testing pulses. |
 
-**What to call out:** "**Notice the gating.** Sampler can create samples; cannot approve. The required tests for Primary Aluminum (XRF, OES, Moisture) come from the material spec — the workflow engine reads master data, not the operator."
+**1-to-many callout:** "One sample, three tests, three instruments. The required test list comes from the **material master** for Primary Aluminum, not the operator. Add a fourth required test to the material and the fourth row appears on the next receipt — zero code changes."
 
-### 1.3 · Lab Analyst — import results from the instruments
+### 1.3 · Lab Analyst — import three instrument results
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
 | 1.3.1 | **Switch role** | Role chip → **Lab Analyst**. | — |
-| 1.3.2 | Lab Analyst | On the **XRF Chemistry** row, click **Import**. | Violet primary button. |
-| 1.3.3 | — | Watch the **6-stage modal**: Connecting → Verifying → Reading → Parsing → Validating → Import Successful. ~4.5s total. | Each stage emits an activity feed entry. |
-| 1.3.4 | — | Modal closes. Four green parameter tiles appear: Al, Si, Fe, Cu. | Toast: ‘Results Imported'. |
-| 1.3.5 | Lab Analyst | Repeat **Import** on **OES Chemistry** (Thermo OES-01). | One click. |
-| 1.3.6 | Lab Analyst | Repeat **Import** on **Moisture** (Moisture-01). | One click. |
+| 1.3.2 | Lab Analyst | On **XRF Chemistry** row → click **Import**. | Violet button. |
+| 1.3.3 | — | Watch the **6-stage modal**: Connecting → Verifying → Reading → Parsing → Validating → Import Successful (~4.5s). Four green parameter tiles: Al, Si, Fe, Cu. | Each stage emits an activity feed entry. |
+| 1.3.4 | Lab Analyst | Click **Import** on **OES Chemistry** (Thermo OES-01). | One click. |
+| 1.3.5 | Lab Analyst | Click **Import** on **Moisture** (Moisture-01). | One click. |
 
-**What to call out:** "**Same 6-stage simulation, three instruments.** Per the canonical spec, every stage is a real failure point in production: connectivity, protocol handshake, file parsing, schema validation. Watch the **Quality Insights** panel on the right rail — Supplier Health climbs as parameters land. Recommendation flips to **APPROVE** once the matrix is complete." Compliance is 100%, observations are generated per parameter.
+**Call out:** Same 6-stage simulation, three instruments. Each stage is a real failure point in production. Watch the right rail: **Supplier Health** climbs as parameters land; recommendation flips to **APPROVE** once the matrix is complete.
 
 ### 1.4 · QA Manager — approve the lot
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 1.4.1 | **Switch role** | Role chip → **QA Manager**. | Buttons in the Approval Center come alive. |
+| 1.4.1 | **Switch role** | Role chip → **QA Manager**. | Approval Center buttons come alive. |
 | 1.4.2 | QA Manager | Scroll to **Approval center** → click **Approve**. | Big green button. |
-| 1.4.3 | QA Manager | Confirm in the modal (reason optional on approve). | — |
-| 1.4.4 | — | Toast: ‘Material approved successfully'. Workflow flips green: all six circles complete. Status pill in header → **Approved**. | Bell increments. |
-
-**What to call out:** "From receipt to release in one workspace. **No screen switching, no Excel, no email.** Step 1 has said yes-from-procurement on `LOT-2026-XXXX`."
+| 1.4.3 | QA Manager | Confirm. | — |
+| 1.4.4 | — | Toast: *Material approved successfully*. Workflow flips green: all six circles complete. Status pill → **Approved**. | Bell ticks. |
 
 ### 1.5 · Hand-off teaser
 
-Scroll down to the **Genealogy** card (it'll be present even on Step 1 with downstream nodes empty). Point at the **Process Qualification** slot — still empty. **"Step 2 hasn't happened yet. Let's go do it."**
+Scroll to **Genealogy** — current node is the lot; downstream slots empty. Click **View history** in the header — four audit rows already (receipt, sample, three imports, approval). Close the drawer. "**Pharma-grade audit from the first action.**"
 
-**Framework callout (15 seconds):** "Look at the right rail. **Supplier Health, Risk, Tests Completed, Spec Compliance, Recent Deliveries.** The hero KPI on this workbench is Supplier Health — because Step 1's question is procurement. On the next workbench, the hero KPI will be different. **Same panel pattern. Different hero metric.** That's the Quality Insights framework."
-
-Audit teaser: click **View history** (top-right). Two entries already — receipt created, sample created. Close the drawer. "**Every mutation on this lot is one click away. Pharma-grade audit from the first action.**"
+**Framework callout (15s):** "Right rail hero KPI: Supplier Health — because Step 1's question is procurement. Next workbench, different question, different hero — same panel pattern."
 
 ---
 
-## Chapter 2 · Qualify it for production (Step 2)
+## Chapter 2 · Qualify it for the Casthouse  (Step 2)
 
-> Goal: prove production can consume this material. Roles: QA Engineer → Sampler → Lab Analyst → QA Manager.
+> Goal: prove production can consume this material.
+> Roles: QA Engineer → Sampler → Lab Analyst → QA Manager.
 
-**The bridge:** "Step 1 answered **yes-from-procurement**. Step 2 has to answer **yes-from-process**. The chemistry hasn't changed — but the question has. Can the Casthouse consume this material safely?"
+**Bridge:** "Step 1 said *yes-from-procurement*. Step 2 has to say *yes-from-process* — can the Casthouse safely consume this material?"
 
 ### 2.1 · QA Engineer — create the qualification
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
 | 2.1.1 | **Switch role** | Topbar → **QA Engineer**. | — |
-| 2.1.2 | QA Engineer | Sidebar → **Process Material Qualification** under *Quality Operations*. | Land on `/qualification`. |
-| 2.1.3 | QA Engineer | Click **+ New Qualification** (top-right). | Primary button. |
-| 2.1.4 | QA Engineer | Fill the dialog: Material = **Primary Aluminum**, Consumption area = **Casthouse**, Batch number = **PAL-2026-DEMO**, Source lot = **`LOT-2026-XXXX`** (the one you wrote down in Chapter 1), Source supplier = **Global Alloy Traders**, Quantity = **35**. | Two-column grid. |
-| 2.1.5 | QA Engineer | Click **Create qualification**. | Bottom-right. |
-| 2.1.6 | — | Read the new qualification number from the URL — e.g. `PMQ-2026-001246`. **Write this down**. | `/qualification/PMQ-2026-XXXXXX`. |
+| 2.1.2 | QA Engineer | Sidebar → **Process Material Qualification**. | Land on `/qualification`. |
+| 2.1.3 | QA Engineer | Click **+ New Qualification**. | Primary button. |
+| 2.1.4 | QA Engineer | Material = **Primary Aluminum**, Consumption area = **Casthouse**, Batch number = **PAL-2026-DEMO**, Source lot = **`LOT-2026-XXXX`** (the one from Chapter 1), Supplier = **Global Alloy Traders**, Quantity = **35**. | Two-column dialog. |
+| 2.1.5 | QA Engineer | **Create qualification**. | Bottom-right. |
+| 2.1.6 | — | Read the qualification number from the URL — e.g. `PMQ-2026-001246`. **Sticky note it**. | `/qualification/PMQ-2026-XXXXXX`. |
 
-**What to call out:** "Toast: ‘Qualification created successfully'. We land on the new workbench. **Notice the header chip — `from LOT-2026-XXXX`.**"
+**Call out:** Toast: *Qualification created successfully*. Notice the header chip — `from LOT-2026-XXXX`. **The chain is starting to grow.**
 
-### 2.2 · Prove the genealogy is bidirectional
+### 2.2 · Prove genealogy is bidirectional
 
-Click the **`from LOT-2026-XXXX`** chip in the header. The browser lands back on the Chapter 1 workbench. **"Same browser tab, one click. The chain is navigable, not decorative."** Then click the browser **Back** button to return to the qualification.
+Click the **`from LOT-2026-XXXX`** chip in the header → lands on Chapter 1's workbench. Browser **Back** to the qualification. "**One click each direction. The chain is navigable, not decorative.**"
 
-### 2.3 · Sampler — create the qualification sample
-
-| # | Role | Action | UI pointer |
-|---|---|---|---|
-| 2.3.1 | **Switch role** | Topbar → **Sampler**. | Release buttons greyed. |
-| 2.3.2 | Sampler | Scroll to **Sample management** → click **Create Sample**. | Primary button. |
-| 2.3.3 | — | Sample ID auto-mints to **`PMQS-XXXXXX-A`**. One test auto-assigned: **XRF Chemistry** (Al, Si, Fe). | Workflow: Sample ✓, Testing pulses. |
-
-### 2.4 · Lab Analyst — import the XRF result
+### 2.3 · Sampler → Lab Analyst → QA Manager
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 2.4.1 | **Switch role** | Role chip → **Lab Analyst**. | — |
-| 2.4.2 | Lab Analyst | On the **XRF Chemistry** row, click **Import**. | Violet button. |
-| 2.4.3 | — | Same 6-stage modal — Connecting → … → Import Successful. ~4.5s. Three element tiles populate, all in spec. | Toast: ‘Results imported successfully'. |
+| 2.3.1 | **Switch role** | Topbar → **Sampler**. | — |
+| 2.3.2 | Sampler | **Sample management** → **Create Sample**. | Sample ID `PMQS-XXXXXX-A`, one XRF test (Al, Si, Fe). |
+| 2.3.3 | **Switch role** | **Lab Analyst**. | — |
+| 2.3.4 | Lab Analyst | **XRF Chemistry** → **Import**. | 6-stage modal → three element tiles. |
+| 2.3.5 | **Switch role** | **QA Manager**. | Release button live. |
+| 2.3.6 | QA Manager | **Approval center** → **Release**. | Status → **Released**. |
 
-**What to call out:** "Watch the right rail. **Process Readiness** climbs to ~96. Recommendation flips to **RELEASE TO CASTHOUSE**. The engine writes one observation per parameter — generated, not canned. **We never say ‘AI'.** *Recommendation. Based on history. Compliance check.*"
-
-### 2.5 · QA Manager — release to Casthouse
-
-| # | Role | Action | UI pointer |
-|---|---|---|---|
-| 2.5.1 | **Switch role** | Role chip → **QA Manager**. | Release button comes alive. |
-| 2.5.2 | QA Manager | Scroll to **Approval center** → click **Release**. | Big green button. |
-| 2.5.3 | QA Manager | Confirm in the modal. | — |
-| 2.5.4 | — | Toast: ‘Material released successfully'. All six workflow circles green. Status → **Released**. | Bell increments. |
-
-### 2.6 · Framework callout
-
-"**Same workbench, second question. Same instrument simulation, same audit, same notification feed — different recommendation engine.** The right-rail hero KPI swapped from Supplier Health to Process Readiness. The engine surface didn't change."
-
-**Notice the gating, again.** Hover the **Release** button as Sampler — disabled with tooltip "Requires qa-manager role". The same `RoleGate` component governs every primary action across all five modules. **Separation of duties is a framework concern, not a module concern.**
-
-**Notice the Workflow timeline labels.** Phase 1 stages: Receipt → Sample → Testing → Validation → Review → Release. Phase 2 stages: **Request** → Sample → Testing → Validation → Review → Release. Only the first stage label changes — the engine is shared. Per the canonical spec, Phase 2 is "registered, not rewritten" against the workflow engine.
+**Call out:** Right rail — **Process Readiness ~96**, recommendation **RELEASE TO CASTHOUSE**. "Same workbench, second question, **different recommendation engine, same engine surface**. We never say *AI*. *Recommendation. Based on history. Compliance check.*"
 
 ---
 
-## Chapter 3 · Cast and verify the metal (Step 3)
+## Chapter 3 · Cast the metal  (Step 3 — first fan-out: 1 qualification → N heats)
 
-> Goal: tap a heat from the qualified material, run OES, decide whether to release for casting. Roles: Casthouse Operator → Sampler → Lab Analyst → QA Manager.
+> Goal: tap a heat from the qualified material and verify chemistry.
+> Roles: Casthouse Operator → Sampler → Lab Analyst → QA Manager.
 
-**The bridge:** "Step 2 said yes-from-process. Step 3 has to say **yes-from-casting**. The qualified material went into the smelt line; the molten heat just tapped is `MB-2026-XXXXXX`. Does its chemistry meet P1020 spec?"
+**Bridge:** "Step 2 said *yes-from-process*. Step 3 is *yes-from-casting*. **And here is the first fan-out** — one qualified lot can feed multiple heats over a shift. Watch."
 
-> Between chapters, **point at the bell icon and say**: "Notice the notification stream is now interleaved across three modules — receipts, qualifications, and now metal batches. Same `notif.emit` framework. The bell doesn't care which module emitted what."
+> Quick tab housekeeping: open `/qualification/PMQ-2026-XXXXXX` in a second tab so you can prove the 1-to-many at the end of this chapter.
 
-### 3.1 · Casthouse Operator — create the metal batch
+### 3.1 · Casthouse Operator — create the live heat
 
-> Use the **QA Manager** role for this step. (In production the role chip would read *Casthouse Operator*; the create permission is mapped the same way.)
+> Use the **QA Manager** role for create. (Production: this maps to *Casthouse Operator*.)
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
 | 3.1.1 | **Switch role** | Topbar → **QA Manager** (proxy for Casthouse Operator). | — |
-| 3.1.2 | QA Manager | Sidebar → **Metal Quality Control**. Land on `/metal-quality`. | Queue page. |
-| 3.1.3 | QA Manager | Click **+ New Metal Batch** (top-right). | Primary button. |
-| 3.1.4 | QA Manager | Fill the dialog: Grade = **P1020**, Potline = **PL-04**, Weight = **30**, Shift = **A**, Operator = **Vikram Singh**, Source qualification = **`PMQ-2026-XXXXXX`** (the one you wrote down in Chapter 2), Notes optional. | Two-column grid. |
-| 3.1.5 | QA Manager | Click **Create metal batch**. | Bottom-right. |
-| 3.1.6 | — | Read the new metal batch number from the URL — e.g. `MB-2026-001246`. **Write this down**. | `/metal-quality/MB-2026-XXXXXX`. |
+| 3.1.2 | QA Manager | Sidebar → **Metal Quality Control** → `/metal-quality`. | Queue page. |
+| 3.1.3 | QA Manager | Click **+ New Metal Batch**. | Primary button. |
+| 3.1.4 | QA Manager | Grade = **P1020**, Potline = **PL-04**, Weight = **30**, Shift = **A**, Operator = **Vikram Singh**, Source qualification = **`PMQ-2026-XXXXXX`** (from Chapter 2). | Two-column dialog. |
+| 3.1.5 | QA Manager | **Create metal batch**. | — |
+| 3.1.6 | — | Read the heat number from the URL — e.g. `MB-2026-001246`. **Sticky note it**. | `/metal-quality/MB-2026-XXXXXX`. |
 
-**What to call out:** "Toast: ‘Metal batch created successfully'. We land on the new workbench. **The header carries the grade chip P1020, the potline chip PL-04, the shift chip A** — readable from the back of the room."
-
-### 3.2 · Sampler — draw the metal sample
+### 3.2 · Sampler → Lab Analyst — OES the heat
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 3.2.1 | **Switch role** | Topbar → **Sampler**. | — |
-| 3.2.2 | Sampler | Scroll to **Sample management** → click **Create Sample**. | Primary button. |
-| 3.2.3 | — | Sample ID auto-mints to **`MQS-XXXXXX-A`**. One test auto-assigned: **OES Chemistry** (Si, Fe, Cu, Mg, Zn, Ti, Mn on Thermo OES-01). | Workflow: Sample ✓, OES Analysis pulses. |
+| 3.2.1 | **Switch role** | **Sampler**. | — |
+| 3.2.2 | Sampler | **Sample management** → **Create Sample**. | Sample `MQS-XXXXXX-A`, **OES Chemistry** assigned (Si, Fe, Cu, Mg, Zn, Ti, Mn on Thermo OES-01). |
+| 3.2.3 | **Switch role** | **Lab Analyst**. | — |
+| 3.2.4 | Lab Analyst | **OES Chemistry** → **Import**. | 6-stage modal. **Seven element tiles** populate. |
 
-### 3.3 · Lab Analyst — import the OES result
+### 3.3 · The Chemistry Correction Advisor (Phase 3 signature)
 
-| # | Role | Action | UI pointer |
-|---|---|---|---|
-| 3.3.1 | **Switch role** | Role chip → **Lab Analyst**. | — |
-| 3.3.2 | Lab Analyst | On the **OES Chemistry** row, click **Import**. | Violet button. |
-| 3.3.3 | — | Same 6-stage modal — Connecting → … → Import Successful. ~4.5s. **Seven element tiles** populate: Si, Fe, Cu, Mg, Zn, Ti, Mn. All green. | Toast: ‘OES results imported'. |
+Scroll to the **Chemistry Correction Advisor** card.
 
-### 3.4 · The Phase 3 signature — Chemistry Correction Advisor
-
-Scroll below the OES workspace to the **Chemistry Correction Advisor** (amber-tinted glass card).
-
-| # | What to do | What to say |
+| Step | What to do | What to say |
 |---|---|---|
-| 3.4.1 | The advisor is **quiet** on this batch — chemistry is mid-spec. | "**This is the signature feature of Step 3.** It's silent right now because the heat is on-target — no noise, no false positives." |
-| 3.4.2 | (Optional, 30s) Open a second tab to `/metal-quality/MB-2026-001242` (seeded on-hold sibling, Fe near upper limit). Scroll to the advisor. | "On this on-hold sibling, watch the advisor fire. For each off-target element it computes: how far off target, which additive to use from the additive master, how many kg given the heat mass, what the chemistry will look like after. Plain-language rationale per card." |
-| 3.4.3 | Return to the active tab. | "**Rule-based, advisory, never says ‘AI'.**" |
+| 3.3.1 | Advisor is quiet on this batch (chemistry mid-spec). | "**Silent because the heat is on-target.** No noise, no false positives." |
+| 3.3.2 | (Optional 30s) Second tab → `/metal-quality/MB-2026-001242` (seeded on-hold sibling, Fe near upper limit). | "On this sibling the advisor fires: how far off-target, which additive, how many kg, expected chemistry after addition. **Rule-based, advisory, never *AI*.**" |
 
-### 3.5 · Right rail — Metal Compliance climbs
-
-Look at the **Quality Insights** panel. **Metal Compliance** climbs from ~30 (no data) to **~98**. **Casting Readiness** pill flips to **READY**. Recommendation flips to **RELEASE FOR CASTING**.
-
-### 3.6 · QA Manager — release for casting
+### 3.4 · QA Manager — release for casting
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 3.6.1 | **Role stays** | QA Manager. | — |
-| 3.6.2 | QA Manager | Scroll to **Approval center** → click **Release**. | Big green button. |
-| 3.6.3 | QA Manager | Confirm. | — |
-| 3.6.4 | — | Toast: ‘Casting release approved'. All six circles green. Status → **Released**. | Bell increments. |
+| 3.4.1 | **Role stays** | QA Manager. | — |
+| 3.4.2 | QA Manager | **Approval center** → **Release**. | Status → **Released**. **Metal Compliance ~98**, **Casting Readiness: READY**. |
 
-**What to call out:** "Step 3 has said yes-from-casting. **Notice the four-button grammar in the Approval Center — Release / Hold / Reject / Downgrade.** Downgrade is the Phase 3 superpower — a P1020 heat that misses on one element can be reclassified to Primary Aluminum without re-melting. The audit log knows about it; the customer never sees the wrong grade."
+### 3.5 · 🪞 1-to-many fan-out — tap a second heat from the same qualification (90s)
 
-### 3.7 · Genealogy is now three nodes deep
+**This is the moment.** Same qualification, second heat.
 
-Scroll to the **Genealogy** card on the metal batch workbench. The chain is now **`LOT-2026-XXXX → PMQ-2026-XXXXXX → MB-2026-XXXXXX`** (current). Click the lot node — lands on Chapter 1's workbench. Browser Back. Click the qualification node — lands on Chapter 2's workbench. Browser Back. **"The genealogy framework walks the chain in both directions. Add Phase 4 and the chain grows to four nodes — same card, one more chip."**
+| # | Role | Action | UI pointer |
+|---|---|---|---|
+| 3.5.1 | QA Manager | Sidebar → **Metal Quality Control** → **+ New Metal Batch**. | — |
+| 3.5.2 | QA Manager | Grade = **P1020**, Potline = **PL-04**, Weight = **28**, Shift = **B**, Operator = **Anil Sharma**, Source qualification = **the same `PMQ-2026-XXXXXX`**. | — |
+| 3.5.3 | QA Manager | **Create metal batch**. | New heat — e.g. `MB-2026-XXXXXX-B`. |
+| 3.5.4 | — | (Optional) Sampler → Lab Analyst → import OES → QA Manager → Release. Or skip the testing and leave this sibling in *Pending Testing* — the fan-out is already proven. | — |
+| 3.5.5 | — | Switch back to the second tab on `/qualification/PMQ-2026-XXXXXX`. Scroll to **Material Lineage** in the right rail. Children now lists **two metal batches** — `MB-...A` (Released) and `MB-...B` (Pending). | Right rail of the qualification workbench. |
+
+**Call out:** "**One qualified lot, two heats — and the qualification workbench shows both as children, with status.** That's the lineage framework. The chain isn't a list — it's a tree, and the engine knows it. If a QA Manager later finds an issue with the qualified material, **both heats light up in the lineage view at once.**"
+
+### 3.6 · Genealogy — chain is three nodes deep, with a branch
+
+Return to the live heat (`MB-...A`) and scroll to the **Genealogy** card. The chain is now **`LOT → PMQ → MB`** with the sibling heat shown as a sister node. Click the lot — lands on Chapter 1's workbench. Browser Back. "**One framework, one card, two nodes deep and one branch wide.**"
 
 ---
 
-## Chapter 4 · Test the finished product (Step 4)
+## Chapter 4 · Billet (and ingot) from the same heat  (Step 4 — second fan-out: 1 heat → N products)
 
-> Goal: cast a billet, run six tests across four categories, approve the product for customer release. Roles: Production Operator (= Stores Executive) → Sampler → Lab Analyst → QA Manager.
+> Goal: cast the heat into product, with a second product type called out from the same heat.
+> Roles: Production Operator (= Stores Executive) → Sampler → Lab Analyst → QA Manager.
 
-**The bridge:** "Step 3 said yes-from-casting. Step 4 has to say **yes-from-product**. The metal was good. Does the finished billet meet the customer specification?"
+**Bridge:** "Step 3 said *yes-from-casting*. Step 4 says *yes-from-product*. **Second fan-out**: a single heat can roll different product types in the same shift — billet for one customer, ingot for another. Watch the same heat produce two products."
 
-### 4.1 · Production Operator — register the product batch
-
-> The PRD's **Production Operator** maps to **`stores-executive`** — the operator who books finished product onto the floor.
-
-| # | Role | Action | UI pointer |
-|---|---|---|---|
-| 4.1.1 | **Switch role** | Topbar → **Stores Executive**. | — |
-| 4.1.2 | Stores Executive | Sidebar → **Product Quality Testing**. Land on `/product-quality`. | Queue page. |
-| 4.1.3 | Stores Executive | Click **+ New Product Batch** (top-right). | Primary button. |
-| 4.1.4 | Stores Executive | Fill the dialog: Product type = **Primary Aluminum Billet**, Source metal batch = **`MB-2026-XXXXXX`** (the one from Chapter 3), Weight = **100**, Customer = **Hindalco International**, Operator = **Vikram Singh**. | Two-column grid. The dropdown only shows Released metal batches. |
-| 4.1.5 | Stores Executive | Click **Create product batch**. | Bottom-right. |
-| 4.1.6 | — | Read the new product batch number from the URL — e.g. `PB-2026-000211`. **Write this down**. | `/product-quality/PB-2026-XXXXXX`. |
-
-**What to call out:** "Toast: ‘Product batch created successfully'. We land on the workbench. **Header chip — `← MB-2026-XXXXXX`. Customer chip — Hindalco International.** Step 4 starts here."
-
-### 4.2 · Sampler — create the product sample
+### 4.1 · Production Operator — register the live product batch (Billet for Hindalco)
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 4.2.1 | **Switch role** | Topbar → **Sampler**. | — |
-| 4.2.2 | Sampler | Scroll to **Product sample** → click **Create Sample**. | Primary button. |
-| 4.2.3 | — | Sample ID auto-mints to **`PQS-XXXXXX-A`**. **Six tests** across four categories auto-assigned: **UTS** (Mechanical), **Hardness · Conductivity · Dimensions & Weight** (Physical), **Microstructure Review** (Metallography), **Visual Inspection** (Visual). | Workflow: Sample ✓, Product Testing pulses. |
+| 4.1.1 | **Switch role** | **Stores Executive**. | — |
+| 4.1.2 | Stores Executive | Sidebar → **Product Quality Testing** → `/product-quality`. | Queue page. |
+| 4.1.3 | Stores Executive | Click **+ New Product Batch**. | — |
+| 4.1.4 | Stores Executive | Product type = **Primary Aluminum Billet**, Source metal batch = **`MB-2026-XXXXXX`** (from Chapter 3), Weight = **70**, Customer = **Hindalco International**, Operator = **Vikram Singh**. | The metal-batch dropdown only lists **Released** batches. |
+| 4.1.5 | Stores Executive | **Create product batch**. | — |
+| 4.1.6 | — | Read the new product batch number — e.g. `PB-2026-000211`. **Sticky note it**. | `/product-quality/PB-2026-XXXXXX`. |
 
-### 4.3 · Lab Analyst — capture all six results, three different ways
-
-This is the moment that **shows the full result-capture grammar in one chapter**. Cycle through:
-
-| # | Role | Test | Mode | What to call out |
-|---|---|---|---|---|
-| 4.3.1 | Lab Analyst | **UTS** (Mechanical, UTS-01) | **Import** — narrate the 6-stage flow | "Mechanical test — three parameters land at once: UTS, YieldStrength, Elongation." |
-| 4.3.2 | Lab Analyst | **Hardness** (Physical, HARD-01) | **Import** — quick | "Single parameter, single import." |
-| 4.3.3 | Lab Analyst | **Conductivity** (Physical, COND-01) | **Manual** — reason **External Lab** | "Manual capture with a mandatory reason. Auditable when challenged." |
-| 4.3.4 | Lab Analyst | **Dimensions & Weight** (Physical, DIM-01) | **Upload** — drop any file | "File parser flow — same 3-stage extract." |
-| 4.3.5 | Lab Analyst | **Microstructure Review** (Metallography, MICRO-01) | **Import** | "Optical microscope export — GrainSize, Phase." |
-| 4.3.6 | Lab Analyst | **Visual Inspection** (Visual, VIS-INSP) | **Manual** — SurfaceDefects = 1, reason "Visual inspection by analyst" | "Visual is almost always manual. SurfaceDefects = 1, within tolerance." |
-
-**Switching gears:** "All three capture modes — instrument, manual, upload — used in one chapter, across four test categories. Same right rail, same audit, same notification stream."
-
-### 4.4 · Right rail — Product Compliance climbs
-
-As each test lands, **Product Compliance** climbs (60 → 78 → 91 → 97). **Release Readiness** pill flips REVIEW → **READY** on the last test. Recommendation flips to **APPROVE PRODUCT**.
-
-### 4.5 · QA Manager — approve the product
+### 4.2 · Sampler → Lab Analyst — 6 tests, 3 capture modes
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 4.5.1 | **Switch role** | Topbar → **QA Manager**. | — |
-| 4.5.2 | QA Manager | Scroll to **Approval center** → click **Approve Product**. | Big green button. |
-| 4.5.3 | QA Manager | Confirm. | — |
-| 4.5.4 | — | Toast: ‘Product approved for release'. All six circles green. Status → **Approved**. | Bell increments. |
+| 4.2.1 | **Switch role** | **Sampler**. | — |
+| 4.2.2 | Sampler | **Product sample** → **Create Sample**. | Sample `PQS-XXXXXX-A`. **Six tests** across four categories (UTS / Hardness / Conductivity / Dimensions / Microstructure / Visual). |
+| 4.2.3 | **Switch role** | **Lab Analyst**. | — |
+| 4.2.4 | Lab Analyst | **UTS** → **Import** (UTS-01). | 6-stage modal. Three parameters (UTS / Yield / Elongation). |
+| 4.2.5 | Lab Analyst | **Hardness** → **Import**. | 1 parameter. |
+| 4.2.6 | Lab Analyst | **Conductivity** → **Manual** → reason "External Lab" → enter value 61. | Manual capture with mandatory reason. |
+| 4.2.7 | Lab Analyst | **Dimensions & Weight** → **Upload** → drop any file. | File parser flow. |
+| 4.2.8 | Lab Analyst | **Microstructure Review** → **Import**. | GrainSize, Phase. |
+| 4.2.9 | Lab Analyst | **Visual Inspection** → **Manual** → SurfaceDefects = 1, reason "Visual inspection by analyst". | Within tolerance. |
 
-**What to call out:** "Step 4 has said yes-from-product. **Notice the fourth verb in the Approval Center — Retest.** If a result came in borderline — say UTS at 142 MPa just inside the lower bound — the QA Engineer clicks Retest, picks a reason, the workflow flips back to Retest status, **the sample lineage is preserved**, and the lab re-runs without recreating the sample. The Phase 4 grammar is Approve / Hold / Reject / Retest."
+**Call out:** "All three capture modes — instrument, manual, upload — in one chapter, four test categories. Watch **Product Compliance** climb 60 → 78 → 91 → 97. Release Readiness flips REVIEW → **READY**. Recommendation **APPROVE PRODUCT**."
 
-### 4.6 · Genealogy is now four nodes deep
+### 4.3 · QA Manager — approve
 
-Scroll to the **Genealogy** card on the product batch workbench. The chain is now **`LOT-2026-XXXX → PMQ-2026-XXXXXX → MB-2026-XXXXXX → PB-2026-XXXXXX`** (current). Hover any node — tooltip shows the upstream entity's status. Click the metal batch node — lands on Chapter 3's workbench. **"Four modules. Four nodes. Same card. The genealogy framework didn't change to accommodate Phase 4 — it accommodated automatically."**
+| # | Role | Action | UI pointer |
+|---|---|---|---|
+| 4.3.1 | **Switch role** | **QA Manager**. | — |
+| 4.3.2 | QA Manager | **Approval center** → **Approve Product**. | Status → **Approved**. |
 
-### 4.7 · A note on the test categories
+### 4.4 · 🪞 1-to-many fan-out — second product from the same heat (90s)
 
-Per the canonical spec, the six tests on a product batch are grouped into **four PRD §11 categories** — that's the visual logic of the workspace:
+Now demonstrate the heat → multiple products relationship.
 
-- **Mechanical** — UTS (one row, three parameters)
-- **Physical** — Hardness, Conductivity, Dimensions & Weight (three rows)
-- **Metallography** — Microstructure Review (one row)
-- **Visual** — Visual Inspection (one row, count parameter)
+| # | Role | Action | UI pointer |
+|---|---|---|---|
+| 4.4.1 | Stores Executive | `/product-quality` → **+ New Product Batch**. | — |
+| 4.4.2 | Stores Executive | Product type = **Primary Aluminum Ingot**, Source metal batch = **the same `MB-2026-XXXXXX`**, Weight = **20**, Customer = **Vedanta Domestic**, Operator = **Anil Sharma**. | — |
+| 4.4.3 | Stores Executive | **Create product batch**. | New product — e.g. `PB-...-B`. |
+| 4.4.4 | — | Open a second tab to `/metal-quality/MB-2026-XXXXXX` → scroll to **Material Lineage** in the right rail. Children now lists **two product batches** with type chips: Billet (Hindalco) and Ingot (Vedanta Domestic). | Right rail of the heat workbench. |
 
-Each category header is a `Section` primitive. Adding a seventh test (e.g. a new corrosion test) is one row insertion — **no framework change**.
+**Call out:** "**Same heat. Two products. Two customers.** Watch how the heat's lineage panel shows both children with their target customers. **If we recall this heat tomorrow because of a chemistry issue, the impact analysis is one query — both downstream products light up.**"
+
+### 4.5 · Genealogy — four nodes, branching twice
+
+Scroll to **Genealogy** on the active product batch. The chain is now **`LOT → PMQ → MB → PB`** — current node highlighted. Click the metal batch — lands on Chapter 3's workbench, where the sister heat is visible. Browser Back. "**Four modules. Four nodes. Two branches. Same card. The framework grew sideways automatically.**"
 
 ---
 
-## Chapter 5 · Certify and dispatch (Step 5)
+## Chapter 5 · Certify and dispatch  (Step 5 — third fan-out: 1 product → N certificates)
 
-> Goal: bind every upstream piece of evidence into one customer-signed document, then clear it for shipment. Roles: QA Engineer → QA Manager → Dispatch Executive (= QA Manager).
+> Goal: bind every upstream piece of evidence into a customer-signed document, run the new task chain, and demonstrate certificate health alongside release confidence. Then certify the second customer from the same batch.
+> Roles: QA Engineer → QA Manager → Dispatch Executive (= QA Manager).
 
-**The bridge:** "Steps 1 through 4 each answered one quality question and generated quality evidence. **Step 5 binds that evidence into a single signed document** the customer (and the auditor) will sign for."
+**Bridge:** "Steps 1–4 each answered one question and emitted evidence. **Step 5 binds that evidence into a customer-signed document** — and now demonstrates the new enterprise hardening: task chain, certificate health, margin analysis, copy-on-revise versioning, and a public verify page reachable by QR. **Slow down here.**"
 
-> "If the audience has only been half-watching so far, **this is the chapter that earns their attention back**. The five-node genealogy is on screen for the first time. The Quality Results Summary is the cross-module roll-up. The Customer Specification Validation is the contract grammar. **Slow down here**."
-
-### 5.1 · QA Engineer — generate the certificate
+### 5.1 · QA Engineer — generate the live certificate
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 5.1.1 | **Switch role** | Topbar → **QA Engineer**. | — |
-| 5.1.2 | QA Engineer | Sidebar → **Certificate & Dispatch**. Land on `/certificates`. | Queue page. |
-| 5.1.3 | QA Engineer | Click **+ Generate Certificate** (top-right). | Primary button. |
-| 5.1.4 | QA Engineer | In the dialog, pick product batch **`PB-2026-XXXXXX`** (the one from Chapter 4). Enter customer **Hindalco International**. Leave the optional customer-requirements override blank — *or* tighten one parameter (say, Iron) to demonstrate the validation. | Two fields. |
-| 5.1.5 | QA Engineer | Click **Generate certificate**. | Bottom-right. |
-| 5.1.6 | — | Read the new certificate number from the URL — e.g. `COA-2026-001246`. | `/certificates/COA-2026-XXXXXX`. |
+| 5.1.1 | **Switch role** | **QA Engineer**. | — |
+| 5.1.2 | QA Engineer | Sidebar → **Certificate & Dispatch** → `/certificates`. | Queue page. |
+| 5.1.3 | QA Engineer | Click **+ Generate Certificate**. | — |
+| 5.1.4 | QA Engineer | Product batch = **`PB-2026-XXXXXX`** (Hindalco's billet from Chapter 4), Customer = **Hindalco International**. Optionally tighten Iron to 0.15 max to demonstrate the validation engine. | — |
+| 5.1.5 | QA Engineer | **Generate certificate**. | Read the new number — e.g. `COA-2026-001246`. **Sticky note it**. |
 
-**What to call out:** "Toast: ‘Certificate generated for Hindalco International'. Status: **Draft**. Dispatch: **Pending**. Workflow strip lands on Stage 2 of 5 — Customer Validation."
+**Call out:** "Toast: *Certificate generated for Hindalco International*. Status: **Draft**. Dispatch: **Pending**. Workflow strip lands on Stage 2 of 5 — Customer Validation. **And the task framework just emitted four tasks** — Review → Approve → Approve Dispatch → Release. Watch the right rail."
 
 ### 5.2 · Walk the workbench top to bottom
 
-The certificate workbench is mostly read-only by this point — every piece of evidence comes from upstream. Walk it briefly:
+The Step 5 workbench is now the densest in the platform. Each panel reuses an existing framework but composes the certificate's specific story.
 
 | # | Section | What to call out |
 |---|---|---|
-| 5.2.1 | **Certificate overview** | "Identification block — number, customer, product batch link, issued metadata. QR code, barcode, digital signature placeholders. The QR is a deterministic SVG today; **in production it points at a customer-facing verification URL** signed with PKI." |
-| 5.2.2 | **Customer Specification Validation** (11 rows) | "**This is what the customer signed for.** Every contract parameter — required range vs actual result vs Pass/Warn/Fail. All 11 are green. If even one row flipped to Warn or Fail, the dispatch recommendation would flip immediately." |
-| 5.2.3 | **Quality Results Summary** (4 cards) | "**The roll-up auditors want.** One card per upstream step: Incoming Inspection → Process Qualification → Metal Quality → Product Testing. Each card carries a compliance score and a link back to the originating workbench. The customer gets a single document; the auditor gets a single document that *navigates*." |
-| 5.2.4 | **Genealogy Expanded View** (5 nodes vertical) | "**The full 5-node ladder is now populated**: the lot you created in Chapter 1 → the qualification from Chapter 2 → the metal batch from Chapter 3 → the product batch from Chapter 4 → this certificate. **This is the moment the audience sees the platform's full reach** — one chain, five modules, the current node highlighted." |
+| 5.2.1 | **Certificate header** | Status pill, version chip (**v1**), customer, source product batch. Buttons: **Refresh · History · Preview · Print · Download · Issue**. "QR and barcode are not on the workbench overview anymore — they live where the customer needs them: the printed PDF and the public verify page." |
+| 5.2.2 | **Certificate overview** | Identification block + digital signature placeholder. Signature flips from `—` to `SHA256:…` the moment QA Manager issues. |
+| 5.2.3 | **Customer Specification Validation** | The 11-row contract grammar. **New: Margin column** — a tone-coded bar from Safe → Tight → Breach. "Iron is at 0.13 against 0.15 — 87% of band consumed — the row is **Tight**. The bar lets QA spot brittle compliance at a glance." |
+| 5.2.4 | **Traceability Summary card** | Five rows: Supplier Lot → Qualification → Metal Batch → Product Batch → Certificate. One compact card that *links* — auditors love it. |
+| 5.2.5 | **Quality Results Summary** | Per upstream step, with compliance score and link back. The roll-up auditors want. |
+| 5.2.6 | **Quality Events Timeline** | **New.** Merged chronological feed of audit + dispatch decisions + task lifecycle. "This is the answer to *what happened to this certificate, when, by whom?* — without leaving the workbench." |
+| 5.2.7 | **Genealogy Expanded View** | All five nodes vertical. **First time the full ladder is on screen.** |
 
-### 5.3 · Right rail — Release Confidence
+### 5.3 · Right rail — the two hero KPIs side by side
 
 | # | Action | What to call out |
 |---|---|---|
-| 5.3.1 | Look at **Release Confidence** at the top of the Quality Insights panel. | "**Release Confidence — ~99/100.** Phase 5 hero metric. The math is transparent: 60 points from customer-spec pass rate, 25 from upstream product compliance, 10 from chain coverage, 5 base." |
-| 5.3.2 | Point at customer compliance. | "**11 of 11** customer parameters in spec. Risk Low. Recommendation **APPROVE DISPATCH**." |
-| 5.3.3 | Point at the sparkline below the score. | "Trend across the customer's last 12 deliveries. The line is climbing — **supplier discipline and process control compound over time**, and the engine remembers." |
-| 5.3.4 | Point at the **Key observations** bullets. | "Generated, not canned. One per axis: customer-spec pass rate, upstream product compliance, genealogy coverage, certificate lifecycle state. Business voice, never ‘AI'." |
+| 5.3.1 | **Release Confidence** tile (left half of the Insights panel). | "~99/100. 60 points from customer-spec pass, 25 from upstream product compliance, 10 from chain coverage, 5 base. **Transparent math.**" |
+| 5.3.2 | **Certificate Health** tile (right half) — **new**. | "**Separate from Release Confidence.** Health is about the certificate as a document — Data Completeness, Spec Coverage, Signature Presence, Freshness. Each scores 0–25. We're at 25/25/15/0 right now — signature unlocks at 25 the moment QA Manager issues, freshness scores 25 because issuance is *today*. **Confidence is about the metal. Health is about the document.**" |
+| 5.3.3 | Recommendation + risk tile. | **APPROVE DISPATCH**, risk **Low**, 11 of 11 customer parameters pass. |
+| 5.3.4 | **Approval Chain panel** — new. | Four stages: Generated → Reviewed → Approved → Released. Currently only *Generated* shows an actor. "**Every stage is a role-named, timestamped commitment.** This is what regulators want when they ask *who signed?*" |
+| 5.3.5 | **Versions panel** — new. | One version: v1 · Draft · current. "Watch this list grow in Chapter 6." |
+| 5.3.6 | **Certificate tasks** — new (from the platform Task Framework). | Four tasks: Review (Assigned, QA Engineer), Approve, Approve Dispatch, Release (each Waiting on the previous). "Same `RelatedTasksPanel` we use on the product batch workbench. **The certificate workflow is the task workflow** — the audience sees it from this single panel without us narrating it." |
 
-### 5.4 · QA Manager — issue the certificate
+### 5.4 · Certificate Preview (button in the header)
+
+Click **Preview** in the header.
+
+The dialog renders the **printable COA layout** — header band, identification, QR (real scannable code), the 11-row spec table with **Margin column**, barcode at the footer, signature line. "**This is what the PDF and the customer's printed copy look like.** Hit Print to send it to the office printer. Hit Download to grab the PDF. No surprise between preview and printout."
+
+Close the dialog.
+
+### 5.5 · QA Manager — issue the certificate
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 5.4.1 | **Switch role** | Topbar → **QA Manager**. | — |
-| 5.4.2 | QA Manager | Click **Issue Certificate** in the header. | Primary button. |
-| 5.4.3 | QA Manager | Confirm — "Certificate will be issued and made available for dispatch." | — |
-| 5.4.4 | — | Status flips Draft → **Issued**. Dispatch flips Pending → **Ready**. Workflow strip lands on Stage 3 of 5. | Toast: ‘Certificate issued'. |
+| 5.5.1 | **Switch role** | **QA Manager**. | Issue button live. |
+| 5.5.2 | QA Manager | Click **Issue Certificate** in the header. | — |
+| 5.5.3 | QA Manager | Confirm. | — |
+| 5.5.4 | — | Status flips Draft → **Issued**. Dispatch flips Pending → **Ready**. Workflow strip → Stage 3 of 5. **Digital signature flips from `—` to `SHA256:…`.** | Bell ticks. |
 
-### 5.5 · Dispatch Executive (= QA Manager) — approve dispatch
+**Watch the right rail:**
+
+- **Certificate Health** jumps — *Signature Presence* 15 → 25, *Freshness* 0 → 25. Score ~95/100.
+- **Approval Chain** — *Reviewed* row now shows QA Manager + timestamp.
+- **Certificate tasks** — *Review* now Completed; *Approve* unblocked (Assigned); the rest still Waiting.
+- **Quality Events Timeline** — three new rows (issue + two task transitions).
+
+### 5.6 · Dispatch Executive — approve dispatch
 
 | # | Role | Action | UI pointer |
 |---|---|---|---|
-| 5.5.1 | **Role stays** | QA Manager (PRD §4: Dispatch Executive maps to qa-manager). | — |
-| 5.5.2 | Dispatch Executive | Scroll to **Dispatch Approval** → click **Approve Dispatch**. | Big green button. |
-| 5.5.3 | Dispatch Executive | Confirm. Reason optional on Approve. | — |
-| 5.5.4 | — | Dispatch flips Ready → **Approved** → on subsequent push, **Released**. Workflow strip lands on Stage 4 of 5 (then 5 of 5 on Release). | Toast: ‘Dispatch approved'. |
+| 5.6.1 | **Role stays** | **QA Manager** (Dispatch Executive maps to qa-manager per PRD). | — |
+| 5.6.2 | Dispatch Executive | Scroll to **Dispatch Approval** → click **Approve Dispatch**. | Big green button. |
+| 5.6.3 | Dispatch Executive | Confirm. | — |
+| 5.6.4 | — | Dispatch flips Ready → **Approved**. **DispatchApprovalRecord** persisted (visible at the bottom of the Approval Chain panel). | — |
 
-### 5.6 · The audit drawer pays off
+Click **Release** in the dispatch panel to mark the shipment released. Status → **Released**.
 
-Click **View history** in the header. Read down the list. **The audit roll-up spans every chapter**:
+**Watch the right rail again:**
 
-1. Receipt created (Stores Executive)
-2. Sample created (Sampler)
-3. XRF imported, OES imported, Moisture imported (Lab Analyst)
-4. Receipt approved (QA Manager)
-5. Qualification created (QA Engineer)
-6. Qualification sample, XRF imported (Sampler / Lab Analyst)
-7. Qualification released (QA Manager)
-8. Metal batch created (Casthouse Operator / QA Manager)
-9. Metal sample, OES imported (Sampler / Lab Analyst)
-10. Casting release approved (QA Manager)
-11. Product batch created (Stores Executive)
-12. Product sample, six tests imported / manual / uploaded (Sampler / Lab Analyst)
-13. Product approved (QA Manager)
-14. Certificate generated (QA Engineer)
-15. Certificate issued (QA Manager)
-16. Dispatch approved (QA Manager / Dispatch Executive)
+- **Approval Chain** — *Approved* row + *Released* row both populated.
+- **Dispatch decisions** sub-list shows the Approve + Release records with actor, role, timestamp.
+- **Certificate tasks** — Approve, Approve Dispatch, Release all Completed.
+- **Events timeline** — 8+ rows now.
 
-**Eleven actors. Five modules. One audit log.**
+### 5.7 · 🪞 1-to-many fan-out — second certificate for the second customer (90s)
 
----
+Now the third fan-out: same product batch, second customer.
 
-## Chapter 6 · The traceability close
+| # | Role | Action | UI pointer |
+|---|---|---|---|
+| 5.7.1 | **Switch role** | **QA Engineer**. | — |
+| 5.7.2 | QA Engineer | Sidebar → **Certificate & Dispatch**. | Queue page. |
+| 5.7.3 | QA Engineer | **+ Generate Certificate** → Product batch = **the second product from Chapter 4 (`PB-...-B`, the ingot)**, Customer = **Vedanta Domestic**. | — |
+| 5.7.4 | QA Engineer | **Generate certificate**. | New cert — e.g. `COA-...-B`. |
 
-> Goal: prove the chain is searchable end-to-end. Roles: any.
+**Call out:** "Same metallurgy, different customer, different contract. **The customer spec is regenerated against the customer's requirements** — `Vedanta Domestic`'s tolerances are tighter on Iron, so a Tight margin badge appears where Hindalco's was Safe. **One workbench, infinite customer contracts.**"
 
-### 6.1 · Open the traceability dashboard
+| # | Role | Action | UI pointer |
+|---|---|---|---|
+| 5.7.5 | **Switch role** | **QA Manager**. | — |
+| 5.7.6 | QA Manager | **Issue Certificate** → **Approve Dispatch** → **Release**. | Status → **Issued · Released**. |
 
-Sidebar → **Traceability**. Land on `/traceability`. Look at the KPI strip: **Active Lots, In Testing, Awaiting Approval, Released, Certificates Generated, Coverage %**.
-
-**What to call out:** "Cross-module dashboard. Active Lots is Step 1 in motion. Awaiting Approval is anything waiting on a QA Manager across all five modules. Certificates Generated is the Step 5 throughput. **Coverage %** is the percentage of certificates with a complete 5-node chain."
-
-### 6.2 · Search for the chain you just built
-
-Type the lot number from Chapter 1 — **`LOT-2026-XXXX`** — into the search box. **Every node in the chain you just built comes back as a hit** — the lot, the qualification, the metal batch, the product batch, the certificate.
-
-### 6.3 · Click any hit and prove the chain is bidirectional
-
-Click the certificate hit. Lands on the certificate workbench. Scroll to the **Genealogy Expanded View** — the chain we just built. Click the metal batch node. Lands on Chapter 3's workbench. Click the qualification chip in the header. Lands on Chapter 2's workbench. Click the source lot chip. Lands on Chapter 1's workbench. **Five clicks back to the supplier delivery.**
-
-### 6.4 · Same data, two audiences
-
-**The customer** sees one document — the certificate PDF, the QR code, the customer-spec validation table. Eleven rows, eleven Pass pills.
-
-**The auditor** sees the same document, but every link is live. Customer-spec table → Quality Results Summary → Genealogy Expanded View → click any upstream node → land in that workbench → View history → diff any audit row. **Same chain, different reading.**
-
-### 6.5 · The auditor moment
-
-**"Customer complaint comes in six months from now? Scan the QR on the shipping label, or paste the certificate number into the search box. You get the entire quality lineage — instrument provenance, sampler ID, every result captured, every decision made, with reasons. That's what auditors and regulators want — and that's what was on screen the whole time the QA team was working."**
+Open a third tab to `/product-quality/PB-...-B` → scroll to **Material Lineage** → children now shows the two certificates (Hindalco + Vedanta Domestic) sitting under the same product batch. "**One product, two contracts, two QR codes, two PDFs. The lineage shows the fan-out.**"
 
 ---
 
-## Chapter 7 · The framework angle
+## Chapter 6 · The customer revision  (Step 5 — fourth fan-out: 1 certificate → N versions)
 
-> Goal: 60-second close — five modules cost weeks, not months, because the platform is a framework.
+> Goal: prove copy-on-revise versioning with an immutable history.
+> Roles: QA Engineer / QA Manager.
 
-> The whole twenty-five minutes was just an existence proof. **This chapter is the architecture argument.**
+**Bridge:** "Hindalco's contracts team calls — they want Aluminum oxide explicitly on the certificate even though it was within spec. **Issued certificates are immutable**, so we revise."
+
+### 6.1 · QA Manager — create the revision
+
+| # | Role | Action | UI pointer |
+|---|---|---|---|
+| 6.1.1 | Navigate | Open Hindalco's certificate — `/certificates/COA-2026-XXXXXX` (the one issued in Chapter 5). | — |
+| 6.1.2 | QA Manager | Right rail → **Versions** panel → click **Create revision**. | Dialog opens. |
+| 6.1.3 | QA Manager | Revision reason = "Customer (Hindalco contracts) requested explicit Al₂O₃ row added." | — |
+| 6.1.4 | QA Manager | **Create revision**. | Toast: *Certificate revised*. New certificate number — e.g. `COA-2026-XXXXXX-R1`. Lands on the **new revision's** workbench. |
+
+**Call out (and this is the moment):**
+
+- The new certificate has **version 2** in its chip.
+- The **Versions** panel lists both v1 and v2.
+- Header shows `Revision of COA-2026-XXXXXX · Customer (Hindalco contracts) requested…` — provenance is on the wall.
+- Click the v1 link in the Versions panel → land on the original certificate. Its status is now **Revised**. The body is unchanged — **immutable history**. Browser Back.
+- The new v2 is a fresh **Draft** with its own 4-task chain. Watch the Tasks panel — Review is back at Assigned for QA Engineer.
+
+### 6.2 · Run v2 through the chain
+
+QA Engineer reviews the spec → QA Manager **Issue Certificate** → **Approve Dispatch** → **Release**. ~30 seconds. The v2 number is what Hindalco gets.
+
+**Versions panel now shows two rows** — v1 (Revised, locked) and v2 (Issued · Released, current). The audit log spans both. **No prior data was rewritten.**
+
+---
+
+## Chapter 7 · Verify in the wild  (Step 5 — the customer's view)
+
+> Goal: prove that the QR on the customer's printed COA leads to a public, read-only attestation.
+> Roles: any (the verify page has no auth).
+
+**Bridge:** "Six months from now Hindalco's auditor asks *is this certificate real?* They scan the QR on the printed shipping label. **Here is what they see.**"
+
+### 7.1 · Download the customer-facing PDF
+
+| # | Role | Action | UI pointer |
+|---|---|---|---|
+| 7.1.1 | QA Manager | Open `/certificates/COA-...-R1` (the v2 Hindalco certificate). | — |
+| 7.1.2 | QA Manager | Header → **Download**. The PDF opens / downloads. | — |
+| 7.1.3 | — | Walk the PDF top to bottom: header band, **scannable QR top-right** pointing at `/verify/COA-...`, identification rows (Customer / Product Batch / Metal Batch / Qualification / Lot / Reviewed By / Approved By / Released By), customer spec table with Margin column, Release Confidence + Certificate Health summary, **Code128 barcode** footer, digital signature line. | — |
+
+### 7.2 · Scan the QR — or open the verify URL directly
+
+Two ways to demonstrate:
+
+**Option A — the dramatic one.** Hold a phone over the PDF on screen. The phone camera reads the QR. The phone browser opens `http://localhost:3000/verify/COA-2026-XXXXXX-R1`. (For this to work the phone must be on the same network as your dev server — or use the second browser window staged in 0.6 instead.)
+
+**Option B — the safe one.** Paste the verify URL into the second browser window staged in 0.6.
+
+### 7.3 · The verify page
+
+The page renders with **no AppShell** — no sidebar, no topbar, no role chip. Just:
+
+- A **Verified Authentic** banner in green (or *Draft Certificate* in amber if the cert is unissued).
+- Certificate Number · Customer · Status · Product Batch · Metal Batch · Qualification · Source Lot · Issued / Issued by.
+- The same QR code, large.
+- **Customer compliance: 11 / 11** progress bar.
+- Release Confidence + Certificate Health KPIs.
+- *Verified at [timestamp]* · *v2* · *Open workbench →* link.
+
+**Call out:** "**Same data, different audience.** No customer login. No password. No app to install. They scan, they see *Verified Authentic*, they see what their contract says vs what they got, and they see who approved it. **This is the difference between a Certificate of Analysis and a piece of paper.** And the audit chain behind it is the entire 30-minute story we just told."
+
+---
+
+## Chapter 8 · The traceability close
+
+> Goal: prove the chain is searchable end-to-end across the tree we just built.
+
+### 8.1 · Open the traceability dashboard
+
+Sidebar → **Traceability**. KPI strip: Active Lots, In Testing, Awaiting Approval, Released, Certificates Generated, Coverage %.
+
+### 8.2 · Search by lot number
+
+Type **`LOT-2026-XXXX`** (the lot from Chapter 1) into the search box. **Eight hits come back**:
+
+1. The lot itself.
+2. The qualification.
+3. The live heat (`MB-...-A`).
+4. The sibling heat (`MB-...-B`).
+5. The Hindalco billet (`PB-...-A`).
+6. The Vedanta ingot (`PB-...-B`).
+7. The Hindalco certificate v1 (`COA-...`) — Revised.
+8. The Hindalco certificate v2 (`COA-...-R1`) — Released.
+9. The Vedanta certificate (`COA-...-B`) — Released.
+
+(Depending on revision sub-steps, you may also see intermediate states.)
+
+**"One input. Three fan-outs. Nine nodes in the search hit list. Same chain, fully searchable."**
+
+### 8.3 · Click the v2 hit → certificate workbench → genealogy → click any upstream node
+
+The **Genealogy Expanded View** on the v2 workbench is the full 5-node ladder + revision sibling + sibling product + sibling heat. **Five clicks back to the supplier delivery; one click sideways to any branched node.**
+
+### 8.4 · Same data, two audiences
+
+- **The customer** sees `verify/COA-...-R1` and the printed PDF — one document each.
+- **The auditor** sees that same document, but every link in the workbench is live. Customer-spec table → Traceability Summary → Genealogy → click any upstream node → land in that workbench → View history → diff any audit row. **Same chain, different reading.**
+
+### 8.5 · The auditor moment
+
+> "Customer complaint comes in six months from now? Scan the QR on the shipping label, or paste the cert number into the search box. You get the whole quality lineage — instrument provenance, sampler ID, every result captured, every decision made with reasons, the revision history, the dispatch chain, the released-by and the approved-by. **That's what auditors want — and that was on screen the whole time the team was working.**"
+
+---
+
+## Chapter 9 · The framework angle  (60-second close)
+
+> The whole demo was an existence proof. This chapter is the architecture argument.
 
 | # | Talking point | What to show |
 |---|---|---|
-| 7.1 | "**Five workbenches, one shell.**" | Toggle quickly between `/inspection/LOT-...`, `/qualification/PMQ-...`, `/metal-quality/MB-...`, `/product-quality/PB-...`, `/certificates/COA-...`. Same header → timeline → workspace → right-rail composition every time. |
-| 7.2 | "**Workflow engine — five registrations, zero rewrites.**" | Optional: open `api/app/frameworks/workflow_engine.py` for 5 seconds. Five `register(...)` lines, one per module. |
-| 7.3 | "**Quality Insights is a pattern, not a panel.**" | Right rail surfaced **Supplier Health → Process Readiness → Metal Compliance → Product Compliance → Release Confidence** across the five workbenches. The hero KPI swaps; the engine surface doesn't. |
-| 7.4 | "**Instrument Integration is the same 6-stage simulation on five different instruments.**" | XRF, OES, UTS Machine, Hardness Tester, file parser — all reuse the same staged flow. |
-| 7.5 | "**Adding Heat Chemistry (Step 6), Casting Quality (Step 7), Mechanical Testing (Step 8), MTC Dispatch (Step 9) is one workflow registration plus a section composition plus a tuned readiness function. No framework code changes. We just demonstrated the architecture is real.**" | — |
-| 7.6 | "**Audit and notifications are framework-level, not module-level.**" | The bell shows interleaved events from all five modules. The audit drawer on any node shows the entity-typed slice — the underlying record is one append-only log across the platform. |
-| 7.7 | "**This is not a LIMS, not a SAP transaction screen, not an Excel replacement.**" | Per the canonical spec: "Modern Manufacturing Control Tower. Enterprise SaaS. Production application." The reads-in-three-to-five-seconds discipline carried through every chapter. |
+| 9.1 | "**Five workbenches, one shell.**" | Toggle quickly between `/inspection/LOT-...`, `/qualification/PMQ-...`, `/metal-quality/MB-...`, `/product-quality/PB-...`, `/certificates/COA-...`. Same header → timeline → workspace → right rail every time. |
+| 9.2 | "**Tasks are framework-level.**" | Open **My Work** in the sidebar — the table mixes tasks from all five modules. Each row carries a deep link to its workbench. **Step 5's 4-task chain is not Step 5 code — it's a `RelatedTasksPanel` over the same engine that drives Step 4's per-test tasks.** |
+| 9.3 | "**Approvals are framework-level.**" | Open the Approval Chain on the v2 certificate and the Approval center on any earlier module. Same grammar — actor / role / decision / reason / timestamp. The DispatchApprovalRecord on Step 5 is a thin schema over the same persistence pattern. |
+| 9.4 | "**Quality Insights — pattern, not panel.**" | Right rail surfaced Supplier Health → Process Readiness → Metal Compliance → Product Compliance → **Release Confidence + Certificate Health** across the five workbenches. The hero KPI swaps; the engine surface doesn't. |
+| 9.5 | "**Lineage is a tree, not a list.**" | The qualification has two child heats. The heat has two child products. The product has two child certificates. The Hindalco certificate has two versions. **One `LineageLink` schema, one panel.** |
+| 9.6 | "**Audit + Events Timeline are framework-level.**" | The Step 5 events timeline merges audit + tasks + dispatch — three streams, one chronological log, one card. Adding a new event source is one tuple in `_audit_severity` plus a new event-builder block. |
+| 9.7 | "**Instrument Simulation is the same 6-stage flow on five different instruments.**" | XRF, OES, UTS, Hardness, Microscope, file parser — all reuse the same staged flow with deterministic mock values per `(instrument, sample)`. |
+| 9.8 | "**QR + Code128 + PDF + Public Verify — production-grade Phase 5.**" | `qrcode` + `python-barcode` for scannable artifacts. `reportlab` for the PDF. `/verify/<n>` for the customer-facing attestation. No proprietary mock. |
+| 9.9 | "**Adding Heat Chemistry (Step 6), Casting Quality (Step 7), Mechanical Testing (Step 8), MTC Dispatch (Step 9) is one workflow registration + a section composition + a tuned readiness function. No framework code changes. We just proved the architecture is real.**" | — |
+| 9.10 | "**This is not a LIMS. This is not a SAP screen. This is not an Excel replacement.**" | Per the canonical spec: *Modern Manufacturing Control Tower. Enterprise SaaS. Production application.* The reads-in-three-to-five-seconds discipline carried through every chapter. |
 
 ---
 
-## Quick reference · The chain you built
+## Quick reference · The tree you built
 
-| Chapter | Entity | Role(s) | Terminal status | Recommendation | URL pattern |
-|---|---|---|---|---|---|
-| 1 | Receipt | Stores Exec, Sampler, Lab Analyst, QA Manager | **Approved** | APPROVE | `/inspection/LOT-2026-XXXX` |
-| 2 | Qualification | QA Engineer, Sampler, Lab Analyst, QA Manager | **Released** | RELEASE TO CASTHOUSE | `/qualification/PMQ-2026-XXXXXX` |
-| 3 | Metal Batch | Casthouse Op (= QA Manager), Sampler, Lab Analyst, QA Manager | **Released** | RELEASE FOR CASTING | `/metal-quality/MB-2026-XXXXXX` |
-| 4 | Product Batch | Production Op (= Stores Exec), Sampler, Lab Analyst, QA Manager | **Approved** | APPROVE PRODUCT | `/product-quality/PB-2026-XXXXXX` |
-| 5 | Certificate | QA Engineer, QA Manager, Dispatch Exec (= QA Manager) | **Issued · Released** | APPROVE DISPATCH | `/certificates/COA-2026-XXXXXX` |
+```
+LOT-2026-XXXX  (Approved)
+  └── PMQ-2026-XXXXXX  (Released)
+        ├── MB-2026-XXXXXX     (Released)
+        │     ├── PB-2026-XXXXXX     (Approved — Hindalco billet)
+        │     │     ├── COA-2026-XXXXXX        (Revised → v1 locked)
+        │     │     └── COA-2026-XXXXXX-R1     (Issued · Released → Hindalco's certificate of record)
+        │     └── PB-2026-XXXXXX-B   (Approved — Vedanta ingot)
+        │           └── COA-2026-XXXXXX-B      (Issued · Released)
+        └── MB-2026-XXXXXX-B   (Pending — sibling heat, optional callout)
+```
 
-> Read the actual numbers from the URL bar after each create — they're minted server-side, not predictable.
+| Step | Entity | Roles touched | Terminal status |
+|---|---|---|---|
+| 1 | `LOT-2026-XXXX` | Stores Exec · Sampler · Lab Analyst · QA Manager | Approved |
+| 2 | `PMQ-2026-XXXXXX` | QA Engineer · Sampler · Lab Analyst · QA Manager | Released |
+| 3 | `MB-2026-XXXXXX` + sibling | Casthouse Op · Sampler · Lab Analyst · QA Manager | Released / Pending |
+| 4 | `PB-2026-XXXXXX` + sibling | Production Op · Sampler · Lab Analyst · QA Manager | Approved (both) |
+| 5 | `COA-2026-XXXXXX` (Hindalco v2) + `COA-2026-XXXXXX-B` (Vedanta) | QA Engineer · QA Manager · Dispatch Exec | Issued · Released |
 
 ---
 
@@ -492,31 +584,35 @@ Click the certificate hit. Lands on the certificate workbench. Scroll to the **G
 
 | Symptom | Fix |
 |---|---|
-| Pages 404 or "Network error" | API is down. Ctrl+C in Window A and re-run `uvicorn app.main:app --reload --port 8000`. Frontend reconnects within ~4 seconds. |
-| Stale data after a create | Refresh the queue (Ctrl+R / Cmd+R). React Query refetches on focus too. |
-| Need to reset the demo state | Restart `uvicorn` (Window A). The in-memory store reseeds — both phase heroes and the demo data are back. |
-| A button is greyed out | You're on the wrong role. Switch to **QA Manager** from the topbar role chip — it unlocks every action. Hover any greyed button to see the role it requires. |
-| Bell isn't ticking | Notification poll runs every ~4 seconds. Give it a beat; if it stays silent, the API has died — see row 1. |
+| Pages 404 / Network error | API died. Ctrl+C in Window A → rerun `uvicorn`. Frontend reconnects in ~4s. |
+| PDF / QR / Barcode endpoint returns 503 | Missing Python deps. `pip install -r requirements.txt` (qrcode, python-barcode, reportlab). |
+| QR scan from phone fails | Phone not on same network. Use the staged second browser window from Step 0.6. |
+| Stale data after a create | Ctrl+R / Cmd+R. React Query also refetches on focus. |
+| Need to reset the demo state | Restart `uvicorn` — in-memory store reseeds both phase heroes and the demo chain. |
+| A button is greyed out | Wrong role. Switch to **QA Manager** — unlocks every action. Hover for the required role tooltip. |
+| Bell isn't ticking | Poll runs every ~4s. If silent for >10s, the API died — see row 1. |
 
 ---
 
-## Lightning version (10 minutes)
+## Lightning version (12 minutes)
 
-If you only have 10 minutes:
+If you only have twelve minutes:
 
-1. **The pitch** (30s) — one chain, five workspaces, twenty-five minutes' worth of work into ten.
-2. **Create the receipt + import XRF + Approve** (90s) — `/inspection` → + New Receipt (Global Alloy Traders, Primary Aluminum, 35 MT) → Sampler creates sample → Lab Analyst imports XRF → QA Manager approves. Toast: ‘Material approved successfully'.
-3. **Create the qualification + import XRF + Release** (90s) — `/qualification` → + New Qualification (Casthouse, source lot from step 2) → Sampler → Lab Analyst Imports → QA Manager Releases. **Process Readiness ~96.**
-4. **Create the metal batch + import OES + Release; cameo on Chemistry Correction Advisor** (120s) — `/metal-quality` → + New Metal Batch (P1020, PL-04, source PMQ from step 3) → Sampler → Lab Analyst Imports OES → all 7 elements land → 30-second cameo on `MB-2026-001242` showing the advisor firing → back, QA Manager Releases. **Metal Compliance ~98.**
-5. **Create the product batch + import UTS + Approve** (90s) — `/product-quality` → + New Product Batch (Primary Aluminum Billet, Hindalco International, source MB from step 4) → Sampler (6 tests auto-assigned) → Lab Analyst Imports UTS → QA Manager Approves. **Product Compliance ~97.**
-6. **Generate the certificate + Issue + Approve Dispatch** (90s) — `/certificates` → + Generate Certificate (PB from step 5, Hindalco International) → QA Manager Issues → Approve Dispatch. **Release Confidence ~99.**
-7. **Traceability search** (45s) — `/traceability` → paste the lot number from step 2 → the new chain renders end-to-end, five nodes deep.
-8. **View History on the certificate** (45s) — open the audit drawer → 16 entries, 11 actors, 5 modules.
-9. **Framework close** (45s) — sidebar reveal: five workbenches, one shell. Workflow engine, audit, notifications, instrument simulation — registered, not rewritten. Heat Chemistry, Casting, Mechanical Testing, MTC Dispatch reuse the same shell.
-10. **Done.**
+1. **The pitch** (45s) — one truckload, three fan-outs, two customers, one revision. Five modules, one chain.
+2. **Receipt + sample + XRF Import + Approve** (90s) — `/inspection` → + New Receipt (Global Alloy, Primary Aluminum, 35 MT) → Sampler creates sample → Lab Analyst imports XRF → QA Manager approves.
+3. **Qualification + XRF + Release** (75s) — `/qualification` → + New Qualification (Casthouse, source lot) → Sampler → Lab Analyst → QA Manager Releases. **Process Readiness ~96.**
+4. **Metal batch + OES + Release + sibling heat** (120s) — `/metal-quality` → + New Metal Batch (P1020, PL-04, source PMQ) → Sampler → Lab Analyst imports OES → QA Manager Releases. **Then create a second heat from the same qualification (60s) → show the qualification's Material Lineage panel listing both children.** *First fan-out.*
+5. **Product batch + 2 imports + Approve + sibling ingot** (120s) — `/product-quality` → + New Product Batch (Billet, Hindalco, source MB) → Sampler → Lab Analyst Imports UTS + Hardness → QA Manager Approves. **Then create a second product (Ingot for Vedanta Domestic) from the same heat → show the heat's Material Lineage with both products.** *Second fan-out.*
+6. **Certificate + Issue + Approve Dispatch + Release** (120s) — `/certificates` → + Generate Certificate (Billet PB, Hindalco) → walk the workbench (Release Confidence + Certificate Health side by side, Margin column, Approval Chain, Tasks panel) → QA Manager Issues + Approves Dispatch + Releases.
+7. **Second certificate for second customer** (45s) — + Generate Certificate (Ingot PB, Vedanta Domestic). *Third fan-out.*
+8. **Revise Hindalco's certificate** (60s) — Right-rail **Create revision** with reason → new v2 → Issue → Approve Dispatch → Release. **Versions panel now shows v1 (Revised) and v2 (Issued).** *Fourth fan-out.*
+9. **Scan the QR / open the verify URL on the second browser** (45s) — Verified Authentic, compliance 11/11, v2.
+10. **Traceability search** (45s) — `/traceability` → paste the lot number → 9 hits, every branch visible.
+11. **Framework close** (45s) — five workbenches, one shell. Tasks, approvals, audit, notifications, lineage — all registered, not rewritten. PDF + QR + verify page are production-grade.
+12. **Done.**
 
 ---
 
 ## Closing line for either version
 
-> "Five modules. Eleven actors. One chain. Twenty-five minutes of work — or ten, if we're hurrying — and the audit trail reads like a forensics report. **That's not a LIMS. That's a Manufacturing Quality Intelligence Platform.**"
+> "One truckload. Three fan-outs. One revision. Two customer-signed certificates verified by QR. Thirty minutes — or twelve if we're hurrying — and the audit trail reads like a forensics report. **That's not a LIMS. That's a Manufacturing Quality Intelligence Platform.**"

@@ -587,6 +587,12 @@ def seed() -> None:
     # ====================================================================
     _seed_demo_story_export()
 
+    # ====================================================================
+    # Platform — Material Lineage edges + Workspace tasks for the demo.
+    # ====================================================================
+    _seed_lineage_links()
+    _seed_workspace_tasks()
+
 
 # --------------------------------------------------------------------------
 # Phase 2 helper: seeds the hero qualification PMQ-2026-001245 and sibling
@@ -834,7 +840,7 @@ def _seed_qualifications(c_coke, ctpi, cryolite, bath_mat, alf3, pet_coke, abc, 
 
 
 # --------------------------------------------------------------------------
-# Phase 3 helper: seeds hero metal batch MB-2026-001245 (P1020 · PL-03 · 32MT)
+# Phase 3 helper: seeds hero metal batch MB-2026-000789 (P1020 · PL-03 · 32MT)
 # and sibling batches so the queue, workbench, and Quality Insights panel
 # render meaningful data.
 # --------------------------------------------------------------------------
@@ -843,7 +849,7 @@ def _seed_metal_batches() -> None:
 
     hero = MetalBatch(
         id=_id(),
-        metalBatchNumber="MB-2026-001245",
+        metalBatchNumber="MB-2026-000789",
         productGrade=ProductGrade.P1020,
         potline="PL-03",
         shift="A",
@@ -1086,7 +1092,7 @@ def _seed_product_batches() -> None:
         productType=ProductType.PRIMARY_ALUMINUM_INGOT,
         weight=22.5,
         uom="MT",
-        sourceMetalBatchNumber="MB-2026-001245",
+        sourceMetalBatchNumber="MB-2026-000789",
         customer="Export Customer",
         operator="Vikram Singh",
         productionDate=_iso(0, 4),
@@ -1096,6 +1102,7 @@ def _seed_product_batches() -> None:
         createdAt=_iso(0, 4),
         createdBy="Vikram Singh",
         notes="Hero ingot pour ready for QA review.",
+        complianceScore=97,
     )
     db.product_batches[hero.id] = hero
 
@@ -1184,7 +1191,8 @@ def _seed_product_batches() -> None:
                      status=ProductBatchStatus.APPROVED, riskLevel=RiskLevel.LOW,
                      assignedTo="Priya Menon", createdAt=_iso(1, 6),
                      createdBy="Anil Kumar",
-                     notes="Approved — quality trend stable."),
+                     notes="Approved — quality trend stable.",
+                     complianceScore=94),
         ProductBatch(id=_id(), productBatchNumber="PB-2026-000208",
                      productType=ProductType.PRIMARY_ALUMINUM_INGOT,
                      weight=22.0, uom="MT",
@@ -1193,7 +1201,8 @@ def _seed_product_batches() -> None:
                      productionDate=_iso(2, 8),
                      status=ProductBatchStatus.APPROVED, riskLevel=RiskLevel.LOW,
                      assignedTo="Priya Menon", createdAt=_iso(2, 8),
-                     createdBy="Vikram Singh"),
+                     createdBy="Vikram Singh",
+                     complianceScore=92),
         ProductBatch(id=_id(), productBatchNumber="PB-2026-000207",
                      productType=ProductType.PRIMARY_ALUMINUM_BILLET,
                      weight=100.0, uom="MT",
@@ -1202,7 +1211,8 @@ def _seed_product_batches() -> None:
                      productionDate=_iso(3, 4),
                      status=ProductBatchStatus.APPROVED, riskLevel=RiskLevel.LOW,
                      assignedTo="Priya Menon", createdAt=_iso(3, 4),
-                     createdBy="Suresh Babu"),
+                     createdBy="Suresh Babu",
+                     complianceScore=95),
         ProductBatch(id=_id(), productBatchNumber="PB-2026-000206",
                      productType=ProductType.PRIMARY_ALUMINUM_INGOT,
                      weight=22.5, uom="MT",
@@ -1212,7 +1222,8 @@ def _seed_product_batches() -> None:
                      status=ProductBatchStatus.ON_HOLD, riskLevel=RiskLevel.MEDIUM,
                      assignedTo="Ravi Iyer", createdAt=_iso(4, 2),
                      createdBy="Anil Kumar",
-                     notes="On hold — minor elongation deviation."),
+                     notes="On hold — minor elongation deviation.",
+                     complianceScore=68),
         ProductBatch(id=_id(), productBatchNumber="PB-2026-000205",
                      productType=ProductType.PRIMARY_ALUMINUM_BILLET,
                      weight=98.0, uom="MT",
@@ -1240,7 +1251,8 @@ def _seed_product_batches() -> None:
                      status=ProductBatchStatus.REJECTED, riskLevel=RiskLevel.HIGH,
                      assignedTo="Priya Menon", createdAt=_iso(6, 0),
                      createdBy="Anil Kumar",
-                     notes="Rejected — elongation 6.5% below spec."),
+                     notes="Rejected — elongation 6.5% below spec.",
+                     complianceScore=44),
     ]
     for b in siblings:
         db.product_batches[b.id] = b
@@ -1415,9 +1427,10 @@ def _seed_certificates() -> None:
         issuedBy="Priya Menon",
         createdAt=_iso(0, 3),
         createdBy="Aditya Rao",
-        qrCodeValue=hero_cert_number,
+        qrCodeValue=f"http://localhost:3000/verify/{hero_cert_number}",
         barcodeValue=hero_cert_number,
         notes="Issued for export shipment.",
+        rootCertificateNumber=hero_cert_number,
     )
     db.certificates[hero_cert.id] = hero_cert
 
@@ -1465,9 +1478,10 @@ def _seed_certificates() -> None:
             issuedBy="Priya Menon" if st == CertificateStatus.ISSUED else None,
             createdAt=_iso(3, 0),
             createdBy="Aditya Rao",
-            qrCodeValue=sibling_number,
+            qrCodeValue=f"http://localhost:3000/verify/{sibling_number}",
             barcodeValue=sibling_number,
             notes=note,
+            rootCertificateNumber=sibling_number,
         )
         db.certificates[sibling.id] = sibling
 
@@ -1769,7 +1783,8 @@ def _seed_demo_story_export() -> None:
         dispatchStatus=DispatchStatus.RELEASED,
         issuedAt=_iso(2, 4), issuedBy="Priya Menon",
         createdAt=_iso(2, 6), createdBy="Aditya Rao",
-        qrCodeValue=cert_number, barcodeValue=cert_number,
+        qrCodeValue=f"http://localhost:3000/verify/{cert_number}", barcodeValue=cert_number,
+        rootCertificateNumber=cert_number,
         notes="Issued and dispatched — full happy-path demo chain.",
     )
     db.certificates[cert_id] = cert
@@ -1802,3 +1817,293 @@ def _seed_demo_story_export() -> None:
                "End-to-end demo chain LOT-2026-0050 → COA-2026-001260 dispatched to Hindalco International.",
                entity_type="certificate", entity_id=cert_id)
 
+
+# --------------------------------------------------------------------------
+# Platform — Material Lineage edges. Seeds the typed-relationship view so the
+# Material Lineage panel shows more than just DIRECT edges on first load.
+# --------------------------------------------------------------------------
+def _seed_lineage_links() -> None:
+    from app.frameworks import lineage as lineage_fw
+    from app.schemas.lineage import RelationshipType
+    from app.schemas.genealogy import NodeType
+
+    # Hero chain — LOT-2026-0042 demo. Each step gets a labelled edge so the
+    # UI shows the relationship type, not just the connection.
+    pairs = [
+        # Direct main chain (hero)
+        (NodeType.RAW_MATERIAL, "LOT-2026-0042",
+         NodeType.PROCESS_QUALIFICATION, "PMQ-2026-001245",
+         RelationshipType.REPRESENTATIVE, "Composite sample drawn across the lot."),
+        (NodeType.PROCESS_QUALIFICATION, "PMQ-2026-001245",
+         NodeType.METAL_BATCH, "MB-2026-000789",
+         RelationshipType.DIRECT, "Released for cast — full PMQ→MB hand-off."),
+        (NodeType.METAL_BATCH, "MB-2026-000789",
+         NodeType.PRODUCT_BATCH, "PB-2026-000210",
+         RelationshipType.DERIVED, "Billet cast from this metal batch."),
+        # Hindalco export chain
+        (NodeType.PROCESS_QUALIFICATION, "PMQ-2026-001260",
+         NodeType.METAL_BATCH, "MB-2026-001260",
+         RelationshipType.DIRECT, None),
+        (NodeType.METAL_BATCH, "MB-2026-001260",
+         NodeType.PRODUCT_BATCH, "PB-2026-000225",
+         RelationshipType.DERIVED, None),
+        (NodeType.PRODUCT_BATCH, "PB-2026-000225",
+         NodeType.CERTIFICATE, "COA-2026-001260",
+         RelationshipType.PRODUCED_BY, "Certificate issued for the dispatched batch."),
+    ]
+    for from_type, from_key, to_type, to_key, rel, note in pairs:
+        lineage_fw._record(from_type, from_key, to_type, to_key, rel,
+                           actor="Seed", notes=note)
+
+
+# --------------------------------------------------------------------------
+# Platform — Workspace tasks. Populates My Work, Approvals, Escalations,
+# Blocked Records and the Phase 9 dashboard strip with realistic items.
+# --------------------------------------------------------------------------
+def _seed_workspace_tasks() -> None:
+    from app.frameworks import task_engine
+    from app.schemas.task import (
+        AssignmentType,
+        TaskCreate,
+        TaskPriority,
+        TaskType,
+    )
+
+    def mk(**kwargs) -> TaskCreate:
+        kwargs.setdefault("assignmentType", AssignmentType.ROLE)
+        return TaskCreate(**kwargs)
+
+    # ---- Sampler queue (sample collection on the hero lot) ----------------
+    task_engine.create_task(mk(
+        title="Collect composite sample",
+        description="Draw a representative sample from LOT-2026-0042.",
+        taskType=TaskType.SAMPLING,
+        moduleKey="incoming-inspection",
+        stageKey="sample",
+        assignedRole="sampler",
+        assignedTo="Sneha Iyer",
+        entityType="receipt", recordKey="LOT-2026-0042",
+        priority=TaskPriority.HIGH,
+        slaTargetMins=240, slaWarningMins=180, slaEscalationMins=360,
+        nextAction="Open Inspection Workbench",
+        href="/inspection/LOT-2026-0042",
+    ), actor="Seed")
+
+    # ---- Lab Analyst — XRF / Moisture / Visual / OES in parallel ---------
+    par_tests = [
+        ("Import XRF chemistry", "Pull results from Panalytical XRF-01."),
+        ("Run moisture analysis", "Sample MQS-001245-A — Moisture-01."),
+        ("Visual inspection report", "Document visible inclusions & oxidation."),
+        ("OES alloy verification", "Run on Thermo OES-01 — cross-check vs XRF."),
+    ]
+    for title, desc in par_tests:
+        task_engine.create_task(mk(
+            title=title,
+            description=desc,
+            taskType=TaskType.TESTING,
+            moduleKey="incoming-inspection",
+            stageKey="testing",
+            assignedRole="lab-analyst",
+            assignedTo="Rahul Verma",
+            entityType="receipt", recordKey="LOT-2026-0042",
+            priority=TaskPriority.MEDIUM,
+            slaTargetMins=180, slaWarningMins=120, slaEscalationMins=300,
+            nextAction="Open Test Results Workspace",
+            href="/inspection/LOT-2026-0042",
+        ), actor="Seed")
+
+    # ---- QA Review (waiting until parallel tests complete) ----------------
+    review_task = task_engine.create_task(mk(
+        title="QA review — LOT-2026-0042",
+        description="Review chemistry, moisture and visual compliance.",
+        taskType=TaskType.REVIEW,
+        moduleKey="incoming-inspection",
+        stageKey="review",
+        assignedRole="qa-engineer",
+        assignedTo="Aditya Rao",
+        entityType="receipt", recordKey="LOT-2026-0042",
+        priority=TaskPriority.HIGH,
+        slaTargetMins=240, slaWarningMins=180, slaEscalationMins=480,
+        nextAction="Open Approval Center",
+        href="/inspection/LOT-2026-0042",
+    ), actor="Seed")
+    # Mark it WAITING — the four test tasks must complete first.
+    review_task.state = task_engine.TaskState.WAITING
+
+    # ---- QA Manager — Approval inbox -------------------------------------
+    task_engine.create_task(mk(
+        title="Approve PMQ-2026-001245",
+        description="Approve qualification for PL-04 cast input.",
+        taskType=TaskType.APPROVAL,
+        moduleKey="process-material-qualification",
+        stageKey="release",
+        assignedRole="qa-manager",
+        assignedTo="Priya Menon",
+        entityType="qualification", recordKey="PMQ-2026-001245",
+        priority=TaskPriority.HIGH,
+        slaTargetMins=240, slaWarningMins=180, slaEscalationMins=360,
+        nextAction="Decide release / hold / reject",
+        href="/qualification/PMQ-2026-001245",
+    ), actor="Seed")
+
+    task_engine.create_task(mk(
+        title="Release MB-2026-000789 for casting",
+        description="Verify chemistry envelope and release metal batch.",
+        taskType=TaskType.APPROVAL,
+        moduleKey="metal-quality-control",
+        stageKey="release",
+        assignedRole="qa-manager",
+        assignedTo="Priya Menon",
+        entityType="metal-batch", recordKey="MB-2026-000789",
+        priority=TaskPriority.CRITICAL,
+        slaTargetMins=180, slaWarningMins=120, slaEscalationMins=240,
+        nextAction="Decide release / hold / downgrade",
+        href="/metal-quality/MB-2026-000789",
+    ), actor="Seed")
+
+    # ---- Stores Executive — Material release after approval --------------
+    task_engine.create_task(mk(
+        title="Release LOT-2026-0040 to production stores",
+        description="Move released material to consumption bin.",
+        taskType=TaskType.GENERAL,
+        moduleKey="incoming-inspection",
+        stageKey="release",
+        assignedRole="stores-executive",
+        assignedTo="Rohit Sharma",
+        entityType="receipt", recordKey="LOT-2026-0040",
+        priority=TaskPriority.MEDIUM,
+        slaTargetMins=240,
+        nextAction="Confirm stores release",
+        href="/inspection/LOT-2026-0040",
+    ), actor="Seed")
+
+    # ---- Escalated task — exceeded SLA -----------------------------------
+    overdue = task_engine.create_task(mk(
+        title="Re-collect sample for LOT-2026-0038",
+        description="Original sample contaminated — re-collection required.",
+        taskType=TaskType.SAMPLING,
+        moduleKey="incoming-inspection",
+        stageKey="sample",
+        assignedRole="sampler",
+        assignedTo="Sneha Iyer",
+        entityType="receipt", recordKey="LOT-2026-0038",
+        priority=TaskPriority.CRITICAL,
+        # Tight SLA already exceeded by the seeded createdAt below.
+        slaTargetMins=30, slaWarningMins=15, slaEscalationMins=45,
+        nextAction="Reopen sampling workflow",
+        href="/inspection/LOT-2026-0038",
+    ), actor="Seed")
+    overdue.createdAt = _iso(0, 4)  # 4 hours ago — well past escalation SLA
+
+    # ---- A couple completed-today items for the Completed queue ---------
+    done_a = task_engine.create_task(mk(
+        title="Approve LOT-2026-0041",
+        taskType=TaskType.APPROVAL,
+        moduleKey="incoming-inspection",
+        stageKey="release",
+        assignedRole="qa-manager",
+        assignedTo="Priya Menon",
+        entityType="receipt", recordKey="LOT-2026-0041",
+        priority=TaskPriority.MEDIUM,
+        slaTargetMins=240,
+        href="/inspection/LOT-2026-0041",
+    ), actor="Seed")
+    task_engine.complete_task(done_a.id, actor="Priya Menon", actor_role="QA Manager")
+
+    done_b = task_engine.create_task(mk(
+        title="Import OES chemistry — MB-2026-001244",
+        taskType=TaskType.TESTING,
+        moduleKey="metal-quality-control",
+        stageKey="testing",
+        assignedRole="lab-analyst",
+        assignedTo="Rahul Verma",
+        entityType="metal-batch", recordKey="MB-2026-001244",
+        priority=TaskPriority.MEDIUM,
+        slaTargetMins=180,
+        href="/metal-quality/MB-2026-001244",
+    ), actor="Seed")
+    task_engine.complete_task(done_b.id, actor="Rahul Verma", actor_role="Lab Analyst")
+
+    # ---- Step 4 — Product Quality Testing task chain for PB-2026-000210 ----
+    pb_hero = db.product_batch_by_number("PB-2026-000210")
+    if pb_hero is not None:
+        # Sampling task (already collected — completed)
+        pb_sample_task = task_engine.create_task(mk(
+            title=f"Collect product sample — {pb_hero.productBatchNumber}",
+            description=f"Draw a representative sample for {pb_hero.productType.value}.",
+            taskType=TaskType.SAMPLING,
+            moduleKey="product-quality",
+            stageKey="sample",
+            assignedRole="lab-analyst",
+            assignedTo="Sneha Iyer",
+            entityType="product-batch",
+            entityId=pb_hero.id,
+            recordKey=pb_hero.productBatchNumber,
+            priority=TaskPriority.MEDIUM,
+            slaTargetMins=240, slaWarningMins=180, slaEscalationMins=360,
+            nextAction="Collect sample",
+            href=f"/product-quality/{pb_hero.productBatchNumber}",
+        ), actor="Seed")
+        task_engine.complete_task(pb_sample_task.id, actor="Sneha Iyer", actor_role="Lab Analyst")
+
+        # One testing task per scheduled test — all completed (hero is PENDING_REVIEW).
+        mandatory_codes = {"UTS", "HARDNESS", "CONDUCTIVITY", "METALLOGRAPHY", "VISUAL"}
+        mandatory_ids: list[str] = []
+        for ptest in db.ptests_for_batch(pb_hero.id):
+            tt = task_engine.create_task(mk(
+                title=f"{ptest.name} — {pb_hero.productBatchNumber}",
+                description=f"Capture {ptest.name} for sample PQS-000210-A.",
+                taskType=TaskType.TESTING,
+                moduleKey="product-quality",
+                stageKey="testing",
+                assignedRole="lab-analyst",
+                assignedTo="Rahul Verma",
+                entityType="product-test",
+                entityId=ptest.id,
+                recordKey=pb_hero.productBatchNumber,
+                priority=TaskPriority.MEDIUM,
+                slaTargetMins=360, slaWarningMins=240, slaEscalationMins=480,
+                nextAction=f"Import {ptest.code} result",
+                href=f"/product-quality/{pb_hero.productBatchNumber}",
+            ), actor="Seed")
+            task_engine.complete_task(tt.id, actor="Rahul Verma", actor_role="Lab Analyst")
+            if ptest.code in mandatory_codes:
+                mandatory_ids.append(tt.id)
+
+        # QA Engineer review — tests done, so this is ASSIGNED (unblocked).
+        pb_review = task_engine.create_task(mk(
+            title=f"Review product compliance — {pb_hero.productBatchNumber}",
+            description="Validate the result set against product specifications and recommend a release action.",
+            taskType=TaskType.REVIEW,
+            moduleKey="product-quality",
+            stageKey="review",
+            assignedRole="qa-engineer",
+            assignedTo="Aditya Rao",
+            entityType="product-batch",
+            entityId=pb_hero.id,
+            recordKey=pb_hero.productBatchNumber,
+            priority=TaskPriority.HIGH,
+            blockedBy=mandatory_ids,  # all completed → review unblocks immediately
+            slaTargetMins=240, slaWarningMins=180, slaEscalationMins=360,
+            nextAction="Complete review",
+            href=f"/product-quality/{pb_hero.productBatchNumber}",
+        ), actor="Seed")
+
+        # QA Manager approval — blocked by review.
+        task_engine.create_task(mk(
+            title=f"Approve product batch — {pb_hero.productBatchNumber}",
+            description="Approve, hold, reject, or request retest.",
+            taskType=TaskType.APPROVAL,
+            moduleKey="product-quality",
+            stageKey="release",
+            assignedRole="qa-manager",
+            assignedTo="Priya Menon",
+            entityType="product-batch",
+            entityId=pb_hero.id,
+            recordKey=pb_hero.productBatchNumber,
+            priority=TaskPriority.HIGH,
+            blockedBy=[pb_review.id],
+            slaTargetMins=180, slaWarningMins=120, slaEscalationMins=240,
+            nextAction="Decide",
+            href=f"/product-quality/{pb_hero.productBatchNumber}",
+        ), actor="Seed")

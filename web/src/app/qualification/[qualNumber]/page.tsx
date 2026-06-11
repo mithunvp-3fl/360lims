@@ -12,7 +12,8 @@ import { QualificationApprovalCenter } from "@/components/qualification/qualific
 import { QualificationActivityFeed } from "@/components/qualification/qualification-activity-feed";
 import { QualificationAuditDrawer } from "@/components/qualification/qualification-audit-drawer";
 import { GenealogyCard } from "@/components/genealogy/genealogy-card";
-import { QualityJourneyPanel } from "@/components/genealogy/quality-journey-panel";
+import { LifecycleProgressPanel } from "@/components/genealogy/lifecycle-progress-panel";
+import { MaterialLineagePanel } from "@/components/genealogy/material-lineage-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMaterials,
@@ -74,7 +75,8 @@ export default function QualificationWorkbenchPage() {
             </div>
             <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
               <ProcessReadinessPanel qualificationNumber={n} />
-              <QualityJourneyPanel nodeType="process-qualification" nodeKey={n} />
+              <LifecycleProgressPanel nodeType="process-qualification" nodeKey={n} />
+              <MaterialLineagePanel nodeType="process-qualification" nodeKey={n} />
               <QualificationApprovalCenter qualification={qualification} />
               <QualificationActivityFeed
                 qualificationNumber={n}

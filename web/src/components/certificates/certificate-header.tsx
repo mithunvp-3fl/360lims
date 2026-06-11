@@ -1,10 +1,13 @@
 "use client";
+import * as React from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
   ChevronRight,
   Download,
+  Eye,
   History,
+  Printer,
   RefreshCw,
   Send,
 } from "lucide-react";
@@ -14,8 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CertificateStatusPill } from "./certificate-status-pill";
 import { DispatchStatusPill } from "./dispatch-status-pill";
+import { CertificatePreviewDialog } from "./certificate-preview-dialog";
 import { RoleGate } from "@/components/kit/role-gate";
-import { useIssueCertificate } from "@/lib/queries";
+import { certificateAssetUrls, useIssueCertificate } from "@/lib/queries";
 import { formatDate } from "@/lib/format";
 import type { Certificate } from "@/lib/types";
 
@@ -28,6 +32,8 @@ export function CertificateHeader({
 }) {
   const qc = useQueryClient();
   const issue = useIssueCertificate(certificate.certificateNumber);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const assets = certificateAssetUrls(certificate.certificateNumber);
 
   return (
     <div className="surface-card surface-card--glass">
@@ -48,6 +54,7 @@ export function CertificateHeader({
             </h1>
             <CertificateStatusPill status={certificate.status} />
             <DispatchStatusPill status={certificate.dispatchStatus} />
+            <Badge tone="outline">v{certificate.version}</Badge>
             <Badge tone="outline">Certificate &amp; Dispatch</Badge>
             <Badge tone="info">{certificate.customer}</Badge>
           </div>
@@ -82,6 +89,9 @@ export function CertificateHeader({
                 qc.invalidateQueries({ queryKey: ["certificate", n] });
                 qc.invalidateQueries({ queryKey: ["certificate-insights", n] });
                 qc.invalidateQueries({ queryKey: ["certificate-quality-summary", n] });
+                qc.invalidateQueries({ queryKey: ["certificate-events", n] });
+                qc.invalidateQueries({ queryKey: ["certificate-versions", n] });
+                qc.invalidateQueries({ queryKey: ["certificate-dispatch-approvals", n] });
                 toast.info("Refreshed", { description: "Latest certificate state pulled." });
               }}
             >
@@ -90,16 +100,41 @@ export function CertificateHeader({
             </Button>
             <Button variant="outline" size="sm" onClick={onShowHistory}>
               <History className="h-3.5 w-3.5" />
-              View history
+              History
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
+              <Eye className="h-3.5 w-3.5" />
+              Preview
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                toast.info("Download placeholder", {
-                  description: "PDF generation will be wired in production.",
-                })
-              }
+              onClick={() => {
+                const w = window.open(assets.pdf, "_blank");
+                if (w) {
+                  w.focus();
+                  setTimeout(() => {
+                    try {
+                      w.print();
+                    } catch {
+                      /* user can print manually */
+                    }
+                  }, 600);
+                }
+              }}
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Print
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = assets.pdf;
+                a.download = `${certificate.certificateNumber}.pdf`;
+                a.click();
+              }}
             >
               <Download className="h-3.5 w-3.5" />
               Download
@@ -133,8 +168,26 @@ export function CertificateHeader({
               {certificate.notes}
             </div>
           )}
+          {certificate.parentCertificateNumber && (
+            <div className="text-[11px] text-ink-muted text-right">
+              Revision of{" "}
+              <Link
+                href={`/certificates/${certificate.parentCertificateNumber}`}
+                className="font-mono hover:text-accent"
+              >
+                {certificate.parentCertificateNumber}
+              </Link>
+              {certificate.revisionReason ? ` · ${certificate.revisionReason}` : ""}
+            </div>
+          )}
         </div>
       </div>
+
+      <CertificatePreviewDialog
+        certificate={certificate}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </div>
   );
 }
