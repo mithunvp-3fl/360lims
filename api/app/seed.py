@@ -582,6 +582,11 @@ def seed() -> None:
     # ====================================================================
     _seed_certificates()
 
+    # ====================================================================
+    # Demo story 2 — fully-approved end-to-end chain (Hindalco export)
+    # ====================================================================
+    _seed_demo_story_export()
+
 
 # --------------------------------------------------------------------------
 # Phase 2 helper: seeds the hero qualification PMQ-2026-001245 and sibling
@@ -1477,4 +1482,323 @@ def _seed_certificates() -> None:
     notif.emit("Certificate issued",
                f"{hero_cert.certificateNumber} issued for {hero_pb.productBatchNumber}.",
                entity_type="certificate", entity_id=hero_cert.id)
+
+
+# --------------------------------------------------------------------------
+# Demo story 2: a fresh end-to-end chain at the final released / approved /
+# dispatched state. Complements the existing PMQ-001245 / MB-001245 /
+# PB-000210 / COA-001245 chain which sits at "pending review" so demos can
+# show both an active work-in-progress chain and a completed happy path.
+#
+# Storyline: 50 MT Primary Aluminum delivery from Global Alloy Traders is
+# qualified for the Casthouse (PMQ-2026-001260), cast as P1020 on Potline 04
+# (MB-2026-001260), billeted (PB-2026-000225), and certified for export to
+# Hindalco International (COA-2026-001260).
+# --------------------------------------------------------------------------
+def _seed_demo_story_export() -> None:
+    from app.frameworks import audit, notifications as notif
+
+    gat = next((s for s in db.suppliers.values() if s.code == "SUP-GAT"), None)
+    pr_al = next((m for m in db.materials.values() if m.code == "MAT-PRAL"), None)
+    if not gat or not pr_al:
+        return
+
+    # ---------- Step 1: Receipt (APPROVED) ----------
+    receipt_id = _id()
+    receipt = Receipt(
+        id=receipt_id, lotNumber="LOT-2026-0050",
+        supplierId=gat.id, materialId=pr_al.id,
+        quantity=50.0, uom="MT",
+        vehicleNumber="MH-12-CD-9001", poNumber="PO-2026-200",
+        receiptDate=_iso(10, 4), status=ReceiptStatus.APPROVED,
+        riskLevel=RiskLevel.LOW,
+        assignedTo="Aditya Rao", createdAt=_iso(10, 4),
+        createdBy="Rohit Sharma",
+        notes="Export-grade Primary Aluminum — demo story chain for Hindalco.",
+    )
+    db.receipts[receipt_id] = receipt
+    wf1 = workflow_engine.create_workflow("incoming-inspection", receipt_id)
+    workflow_engine.complete_through(wf1, "release", "Priya Menon")
+    db.workflows[receipt_id] = wf1
+
+    smp = Sample(
+        id=_id(), sampleId="SMP-2026-0050-A", receiptId=receipt_id,
+        collectionDate=_iso(10, 3), collectedBy="Sneha Iyer",
+        status=SampleStatus.COLLECTED,
+        notes="Composite from 5 sub-lots.",
+    )
+    db.samples[smp.id] = smp
+
+    al_specs = {sp.parameter: sp for sp in pr_al.specifications}
+    xrf_test = Test(
+        id=_id(), sampleId=smp.id, code="XRF", name="XRF Chemistry",
+        parameters=["Al", "Si", "Fe"], instrumentCode="XRF-01",
+        status=TestStatus.COMPLETED, assignedAt=_iso(10, 2),
+    )
+    db.tests[xrf_test.id] = xrf_test
+    rid_xrf = _id()
+    db.results[rid_xrf] = Result(
+        id=rid_xrf, testId=xrf_test.id, sampleId=smp.id,
+        source=ResultSource.INSTRUMENT,
+        values=[
+            ResultValue(parameter="Al", value=99.72, unit="%",
+                        specMin=al_specs["Al"].minValue,
+                        specMax=al_specs["Al"].maxValue,
+                        status=ResultStatus.PASS),
+            ResultValue(parameter="Si", value=0.05, unit="%",
+                        specMin=al_specs["Si"].minValue,
+                        specMax=al_specs["Si"].maxValue,
+                        status=ResultStatus.PASS),
+            ResultValue(parameter="Fe", value=0.09, unit="%",
+                        specMin=al_specs["Fe"].minValue,
+                        specMax=al_specs["Fe"].maxValue,
+                        status=ResultStatus.PASS),
+        ],
+        enteredBy="System (Panalytical XRF-01)", enteredAt=_iso(10, 2),
+        instrumentCode="XRF-01", overallStatus=ResultStatus.PASS,
+    )
+
+    # ---------- Step 2: Qualification (RELEASED) ----------
+    qual_id = _id()
+    qual = Qualification(
+        id=qual_id, qualificationNumber="PMQ-2026-001260",
+        materialId=pr_al.id, batchNumber="PAL-2026-018",
+        supplierId=gat.id, sourceLotNumber="LOT-2026-0050",
+        consumptionArea=ConsumptionArea.CASTHOUSE,
+        quantity=50.0, uom="MT",
+        status=QualificationStatus.RELEASED, riskLevel=RiskLevel.LOW,
+        assignedTo="Priya Menon",
+        requestedAt=_iso(8, 6), requestedBy="Aditya Rao",
+        notes="Casthouse qualification for export-grade ingot/billet pour.",
+    )
+    db.qualifications[qual_id] = qual
+    wf2 = workflow_engine.create_workflow("process-material-qualification", qual_id)
+    workflow_engine.complete_through(wf2, "release", "Priya Menon")
+    db.workflows[qual_id] = wf2
+
+    q_sample = QualificationSample(
+        id=_id(), sampleId="PMQS-001260-A", qualificationId=qual_id,
+        collectionDate=_iso(8, 5), collectedBy="Sneha Iyer",
+        status=SampleStatus.COLLECTED,
+    )
+    db.qualification_samples[q_sample.id] = q_sample
+
+    q_test = QualificationTest(
+        id=_id(), sampleId=q_sample.id,
+        code="XRF", name="XRF Chemistry",
+        parameters=["Al", "Si", "Fe"], instrumentCode="XRF-01",
+        status=TestStatus.COMPLETED, assignedAt=_iso(8, 4),
+    )
+    db.qualification_tests[q_test.id] = q_test
+    qrid = _id()
+    db.qualification_results[qrid] = QualificationResult(
+        id=qrid, testId=q_test.id, sampleId=q_sample.id,
+        source=ResultSource.INSTRUMENT,
+        values=[
+            ResultValue(parameter="Al", value=99.74, unit="%",
+                        specMin=99.5, specMax=99.95, status=ResultStatus.PASS),
+            ResultValue(parameter="Si", value=0.04, unit="%",
+                        specMin=0.0, specMax=0.1, status=ResultStatus.PASS),
+            ResultValue(parameter="Fe", value=0.08, unit="%",
+                        specMin=0.0, specMax=0.2, status=ResultStatus.PASS),
+        ],
+        enteredBy="System (Panalytical XRF-01)", enteredAt=_iso(8, 3),
+        instrumentCode="XRF-01", overallStatus=ResultStatus.PASS,
+    )
+
+    # ---------- Step 3: Metal Batch (RELEASED) ----------
+    mb_id = _id()
+    mb = MetalBatch(
+        id=mb_id, metalBatchNumber="MB-2026-001260",
+        productGrade=ProductGrade.P1020, potline="PL-04", shift="A",
+        productionDate=_iso(6, 6), weight=35.0, uom="MT",
+        operator="Vikram Singh",
+        status=MetalBatchStatus.RELEASED, riskLevel=RiskLevel.LOW,
+        assignedTo="Priya Menon",
+        sourceQualificationNumber="PMQ-2026-001260",
+        createdAt=_iso(6, 6), createdBy="Vikram Singh",
+        notes="Tap from PL-04 — released for billet casting.",
+    )
+    db.metal_batches[mb_id] = mb
+    wf3 = workflow_engine.create_workflow("metal-quality-control", mb_id)
+    workflow_engine.complete_through(wf3, "release", "Priya Menon")
+    db.workflows[mb_id] = wf3
+
+    m_sample = MetalSample(
+        id=_id(), sampleId="MQS-001260-A", metalBatchId=mb_id,
+        collectionDate=_iso(6, 5), collectedBy="Sneha Iyer",
+        status=SampleStatus.COLLECTED,
+    )
+    db.metal_samples[m_sample.id] = m_sample
+
+    m_test = MetalTest(
+        id=_id(), sampleId=m_sample.id,
+        code="OES", name="OES Chemistry",
+        parameters=["Si", "Fe", "Cu", "Mg", "Zn", "Ti", "Mn"],
+        instrumentCode="OES-01",
+        status=TestStatus.COMPLETED, assignedAt=_iso(6, 4),
+    )
+    db.metal_tests[m_test.id] = m_test
+    mrid = _id()
+    db.metal_results[mrid] = MetalResult(
+        id=mrid, testId=m_test.id, sampleId=m_sample.id,
+        source=ResultSource.INSTRUMENT,
+        values=[
+            ResultValue(parameter="Si", value=0.07, unit="%",
+                        specMin=0.0, specMax=0.10, status=ResultStatus.PASS),
+            ResultValue(parameter="Fe", value=0.13, unit="%",
+                        specMin=0.0, specMax=0.20, status=ResultStatus.PASS),
+            ResultValue(parameter="Cu", value=0.02, unit="%",
+                        specMin=0.0, specMax=0.03, status=ResultStatus.PASS),
+            ResultValue(parameter="Mg", value=0.01, unit="%",
+                        specMin=0.0, specMax=0.03, status=ResultStatus.PASS),
+            ResultValue(parameter="Zn", value=0.01, unit="%",
+                        specMin=0.0, specMax=0.03, status=ResultStatus.PASS),
+            ResultValue(parameter="Ti", value=0.01, unit="%",
+                        specMin=0.0, specMax=0.03, status=ResultStatus.PASS),
+            ResultValue(parameter="Mn", value=0.01, unit="%",
+                        specMin=0.0, specMax=0.03, status=ResultStatus.PASS),
+        ],
+        enteredBy="System (Thermo OES-01)", enteredAt=_iso(6, 3),
+        instrumentCode="OES-01", overallStatus=ResultStatus.PASS,
+    )
+
+    # ---------- Step 4: Product Batch (APPROVED) ----------
+    pb_id = _id()
+    pb = ProductBatch(
+        id=pb_id, productBatchNumber="PB-2026-000225",
+        productType=ProductType.PRIMARY_ALUMINUM_BILLET,
+        weight=100.0, uom="MT",
+        sourceMetalBatchNumber="MB-2026-001260",
+        customer="Hindalco International",
+        operator="Vikram Singh",
+        productionDate=_iso(4, 6),
+        status=ProductBatchStatus.APPROVED, riskLevel=RiskLevel.LOW,
+        assignedTo="Priya Menon",
+        createdAt=_iso(4, 6), createdBy="Vikram Singh",
+        notes="Billet cast for Hindalco export shipment.",
+    )
+    db.product_batches[pb_id] = pb
+    wf4 = workflow_engine.create_workflow("product-quality-testing", pb_id)
+    workflow_engine.complete_through(wf4, "release", "Priya Menon")
+    db.workflows[pb_id] = wf4
+
+    p_sample = ProductSample(
+        id=_id(), sampleId="PQS-000225-A", productBatchId=pb_id,
+        collectionDate=_iso(4, 5), collectedBy="Sneha Iyer",
+        status=SampleStatus.COLLECTED,
+        notes="Billet sample drawn from cross-section.",
+    )
+    db.product_samples[p_sample.id] = p_sample
+
+    billet_test_plan = [
+        ("UTS", "Ultimate Tensile Strength", ["UTS", "YieldStrength", "Elongation"],
+         "UTS-01", [("UTS", 178.0), ("YieldStrength", 76.0), ("Elongation", 12.5)]),
+        ("HARDNESS", "Hardness", ["Hardness"], "HARD-01",
+         [("Hardness", 56.0)]),
+        ("CONDUCTIVITY", "Conductivity", ["Conductivity"], "COND-01",
+         [("Conductivity", 59.5)]),
+        ("DIMENSIONS", "Dimensions & Weight", ["Length", "Diameter", "Weight"],
+         "DIM-01", [("Length", 1500.0), ("Diameter", 180.0), ("Weight", 100.0)]),
+        ("METALLOGRAPHY", "Microstructure Review", ["GrainSize", "Phase"],
+         "MICRO-01", [("GrainSize", 78.0), ("Phase", 96.4)]),
+        ("VISUAL", "Visual Inspection", ["SurfaceDefects"], "VIS-INSP",
+         [("SurfaceDefects", 1.0)]),
+    ]
+    for code, name, params, inst_code, vals in billet_test_plan:
+        t = ProductTest(
+            id=_id(), sampleId=p_sample.id,
+            code=code, name=name, parameters=params,
+            instrumentCode=inst_code,
+            status=TestStatus.COMPLETED, assignedAt=_iso(4, 4),
+        )
+        db.product_tests[t.id] = t
+        rvals = []
+        overall = ResultStatus.PASS
+        for p, v in vals:
+            spec = product_fw.spec_for(ProductType.PRIMARY_ALUMINUM_BILLET, p)
+            unit = product_fw.unit_for(p)
+            if spec:
+                lo, hi, _ = spec
+                status_val = product_fw._status_for(v, lo, hi)
+            else:
+                lo, hi, status_val = None, None, ResultStatus.PASS
+            if status_val == ResultStatus.FAIL:
+                overall = ResultStatus.FAIL
+            elif status_val == ResultStatus.WARNING and overall == ResultStatus.PASS:
+                overall = ResultStatus.WARNING
+            rvals.append(ResultValue(
+                parameter=p, value=v, unit=unit or "",
+                specMin=lo, specMax=hi, status=status_val,
+            ))
+        prid = _id()
+        db.product_results[prid] = ProductResult(
+            id=prid, testId=t.id, sampleId=p_sample.id,
+            source=ResultSource.INSTRUMENT,
+            values=rvals,
+            enteredBy=f"System ({inst_code})",
+            enteredAt=_iso(4, 3),
+            instrumentCode=inst_code,
+            overallStatus=overall,
+        )
+
+    # ---------- Step 5: Certificate (ISSUED + RELEASED) ----------
+    specs: List[CustomerSpec] = []
+    seen: set[str] = set()
+    for r in db.presults_for_batch(pb_id):
+        for v in r.values:
+            if v.parameter in seen:
+                continue
+            seen.add(v.parameter)
+            specs.append(CustomerSpec(
+                parameter=v.parameter,
+                unit=v.unit or "",
+                requiredMin=v.specMin,
+                requiredMax=v.specMax,
+                actualValue=v.value,
+                complianceStatus=v.status,
+            ))
+    cert_number = "COA-2026-001260"
+    cert_id = _id()
+    cert = Certificate(
+        id=cert_id, certificateNumber=cert_number,
+        productBatchNumber="PB-2026-000225", productBatchId=pb_id,
+        customer="Hindalco International",
+        customerSpecs=specs,
+        status=CertificateStatus.ISSUED,
+        dispatchStatus=DispatchStatus.RELEASED,
+        issuedAt=_iso(2, 4), issuedBy="Priya Menon",
+        createdAt=_iso(2, 6), createdBy="Aditya Rao",
+        qrCodeValue=cert_number, barcodeValue=cert_number,
+        notes="Issued and dispatched — full happy-path demo chain.",
+    )
+    db.certificates[cert_id] = cert
+
+    # ---------- Audit + notification breadcrumbs ----------
+    audit.record("Rohit Sharma", "Stores Executive", "create", "receipt",
+                 receipt_id, None, receipt.model_dump())
+    audit.record("Priya Menon", "QA Manager", "approve", "receipt",
+                 receipt_id, None, receipt.model_dump())
+    audit.record("Aditya Rao", "Process Engineer", "create", "qualification",
+                 qual_id, None, qual.model_dump())
+    audit.record("Priya Menon", "QA Manager", "release", "qualification",
+                 qual_id, None, qual.model_dump())
+    audit.record("Vikram Singh", "Casthouse Operator", "create", "metal-batch",
+                 mb_id, None, mb.model_dump())
+    audit.record("Priya Menon", "QA Manager", "release", "metal-batch",
+                 mb_id, None, mb.model_dump())
+    audit.record("Vikram Singh", "Production Operator", "create", "product-batch",
+                 pb_id, None, pb.model_dump())
+    audit.record("Priya Menon", "QA Manager", "approve", "product-batch",
+                 pb_id, None, pb.model_dump())
+    audit.record("Aditya Rao", "QA Engineer", "create", "certificate",
+                 cert_id, None, cert.model_dump())
+    audit.record("Priya Menon", "QA Manager", "issue", "certificate",
+                 cert_id, None, {"issuedBy": "Priya Menon"})
+    audit.record("Priya Menon", "QA Manager", "dispatch-release", "certificate",
+                 cert_id, None, {"dispatchStatus": "Released"})
+
+    notif.emit("Demo chain released for export",
+               "End-to-end demo chain LOT-2026-0050 → COA-2026-001260 dispatched to Hindalco International.",
+               entity_type="certificate", entity_id=cert_id)
 
