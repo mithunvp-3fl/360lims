@@ -9,3 +9,6 @@ services:
     healthCheckPath: /api/v1/health
     numInstances: 1
     autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
